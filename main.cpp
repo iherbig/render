@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include <limits>
 
 #include "types.h"
 #include "color.h"
@@ -84,8 +85,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 		return -2;
 	}
 
-	auto obj = load_obj("data/african_head.obj");
-
 	Global_World.buffer.width = client_width;
 	Global_World.buffer.height = client_height;
 	Global_World.buffer.bytes_per_pixel = 4;
@@ -99,6 +98,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 	Global_World.buffer.info.bmiHeader.biBitCount = 32;
 	Global_World.buffer.info.bmiHeader.biCompression = BI_RGB;
 
+	auto obj = load_obj("data/african_head.obj");
+
 	auto light_dir = Vector3<f32>{ 0, 0, -1 };
 
 	while (GlobalRunning) {
@@ -110,7 +111,11 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 
 		Global_World.clear(BLACK);
 
-		f32 *z_buffer = (f32 *)VirtualAlloc(0, client_height * client_width * sizeof(f32), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		auto z_buffer_length = client_height * client_width;
+		f32 *z_buffer = (f32 *)VirtualAlloc(0, z_buffer_length * sizeof(f32), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		for (auto index = 0; index < z_buffer_length; ++index) {
+			z_buffer[index] = -1;
+		}
 
 		for (auto index = 0; index < obj.faces.count; ++index) {
 			auto &face = obj.faces[index];

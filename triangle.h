@@ -34,6 +34,8 @@ struct Triangle {
 			barycentric_coefficients.x
 		};
 
+		if ((result.x + result.y + result.z) - 1.0f > 0.001f) return Vector3<f32>{ -1, 1, 1 };
+
 		return result;
 	}
 };

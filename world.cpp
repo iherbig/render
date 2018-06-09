@@ -161,9 +161,9 @@ void World::draw_triangle(const Triangle<f32> &triangle, f32 *z_buffer, const Co
 			// Actually, I'm not even sure why some z-values are negative.
 			// I have no idea what coordinate-space the obj is in.
 			auto depth =
-				fabs(triangle.p1.z * barycentric_coefficients.x +
+				triangle.p1.z * barycentric_coefficients.x +
 				triangle.p2.z * barycentric_coefficients.y +
-				triangle.p3.z * barycentric_coefficients.z);
+				triangle.p3.z * barycentric_coefficients.z;
 
 			if (z_buffer[y * buffer.width + x] > depth) continue;
 
