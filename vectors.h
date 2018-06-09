@@ -136,9 +136,9 @@ struct Vector3 {
 		auto length_reciprocal = (1 / length());
 		
 		Vector3<T> result;
-		result.x = x * length_reciprocal;
-		result.y = y * length_reciprocal;
-		result.z = z * length_reciprocal;
+		result.x = (T)(x * length_reciprocal);
+		result.y = (T)(y * length_reciprocal);
+		result.z = (T)(z * length_reciprocal);
 
 		return result;
 	}

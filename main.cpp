@@ -112,7 +112,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 			obj.verts[face.vertex_indices.z].v3
 		};
 
-		Vector2<int> screen_coords[] =
+		Triangle<int> triangle =
 		{
 			to_screen_coords(client_width, client_height, vertices[0].v2),
 			to_screen_coords(client_width, client_height, vertices[1].v2),
@@ -128,7 +128,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 			// I know that we're not actually handling brightness properly here (128 is not half as bright as 255),
 			// but then I would expect my image to be dark (as the reference image is) not very bright (as mine is).
 			auto grey = (u8)(intensity * 255);
-			Global_Buffer.draw_triangle(screen_coords[0], screen_coords[1], screen_coords[2], Color{ grey, grey, grey, 255 });
+			Global_Buffer.draw_triangle(triangle, client_width, client_height, Color{ grey, grey, grey, 255 });
 		}
 	}
 

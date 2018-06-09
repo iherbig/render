@@ -83,8 +83,6 @@ void Backbuffer::draw_line(Vector2<int> p1, Vector2<int> p2, const Color &color)
 	draw_line(p1.x, p1.y, p2.x, p2.y, color);
 }
 
-// This is getting some artifacting in the drawing.
-// Some of the triangles aren't connecting.
 void Backbuffer::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, const Color &color) {
 	if (t0.y == t1.y && t0.y == t2.y) return;
 
@@ -114,6 +112,21 @@ void Backbuffer::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2
 			// This might be the culprit for the artifacting?
 			// This is really one of those things that I wish I had someone to ask.
 			set(x, (lowest.y + y), color);
+		}
+	}
+}
+
+void Backbuffer::draw_triangle(const Triangle<int> &triangle, int width, int height, const Color &color) {
+	auto min_x = max(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), 0);
+	auto max_x = min(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), width);
+	auto min_y = max(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), 0);
+	auto max_y = min(max(triangle.p1.y, max(triangle.p2.y, triangle.p3.y)), height);
+
+	for (auto x = min_x; x < max_x; ++x) {
+		for (auto y = min_y; y < max_y; ++y) {
+			auto barycentric_coefficients = triangle.barycentric_coefficients_of(Vector2<int>{ x, y });
+			if (barycentric_coefficients.x < 0 || barycentric_coefficients.y < 0 || barycentric_coefficients.z < 0) continue;
+			set(x, y, color);
 		}
 	}
 }

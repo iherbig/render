@@ -4,6 +4,7 @@
 #include "types.h"
 #include "color.h"
 #include "vectors.h"
+#include "triangle.h"
 
 struct Backbuffer {
 	Backbuffer() {};
@@ -23,4 +24,5 @@ struct Backbuffer {
 	void render(HDC context);
 	void clear(const Color &color);
 	void draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, const Color &color);
+	void draw_triangle(const Triangle<int> &triangle, int width, int height, const Color &color);
 };
