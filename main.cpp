@@ -3,7 +3,7 @@
 
 #include "types.h"
 #include "color.h"
-#include "backbuffer.h"
+#include "world.h"
 #include "array.h"
 #include "vectors.h"
 #include "wavefront.h"
@@ -11,7 +11,7 @@
 
 static bool GlobalRunning = true;
 
-static Backbuffer Global_Buffer;
+static World Global_World;
 
 static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 	// If I put this in a custom proc, then the WM_DESTROY, WM_CLOSE, and WM_QUIT messages are never sent to that proc.
@@ -29,7 +29,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, L
 	{
 		PAINTSTRUCT paint;
 		auto context = BeginPaint(window, &paint);
-		Global_Buffer.render(context);
+		Global_World.render(context);
 		EndPaint(window, &paint);
 	} break;
 
@@ -86,51 +86,20 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 
 	auto obj = load_obj("data/african_head.obj");
 
-	Global_Buffer.width = client_width;
-	Global_Buffer.height = client_height;
-	Global_Buffer.bytes_per_pixel = 4;
-	Global_Buffer.stride = client_width * Global_Buffer.bytes_per_pixel;
-	Global_Buffer.memory = (u8 *)VirtualAlloc(0, client_width * client_height * Global_Buffer.bytes_per_pixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	Global_World.buffer.width = client_width;
+	Global_World.buffer.height = client_height;
+	Global_World.buffer.bytes_per_pixel = 4;
+	Global_World.buffer.stride = client_width * Global_World.buffer.bytes_per_pixel;
+	Global_World.buffer.memory = (u8 *)VirtualAlloc(0, client_width * client_height * Global_World.buffer.bytes_per_pixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-	Global_Buffer.info = {};
-	Global_Buffer.info.bmiHeader.biSize = sizeof(Global_Buffer.info.bmiHeader);
-	Global_Buffer.info.bmiHeader.biWidth = client_width;
-	Global_Buffer.info.bmiHeader.biHeight = client_height;
-	Global_Buffer.info.bmiHeader.biPlanes = 1;
-	Global_Buffer.info.bmiHeader.biBitCount = 32;
-	Global_Buffer.info.bmiHeader.biCompression = BI_RGB;
-
-	Global_Buffer.clear(BLACK);
+	Global_World.buffer.info.bmiHeader.biSize = sizeof(Global_World.buffer.info.bmiHeader);
+	Global_World.buffer.info.bmiHeader.biWidth = client_width;
+	Global_World.buffer.info.bmiHeader.biHeight = client_height;
+	Global_World.buffer.info.bmiHeader.biPlanes = 1;
+	Global_World.buffer.info.bmiHeader.biBitCount = 32;
+	Global_World.buffer.info.bmiHeader.biCompression = BI_RGB;
 
 	auto light_dir = Vector3<f32>{ 0, 0, -1 };
-	for (auto index = 0; index < obj.faces.count; ++index) {
-		auto &face = obj.faces[index];
-		Vector3<f32> vertices[] =
-		{
-			obj.verts[face.vertex_indices.x].v3,
-			obj.verts[face.vertex_indices.y].v3,
-			obj.verts[face.vertex_indices.z].v3
-		};
-
-		Triangle<int> triangle =
-		{
-			to_screen_coords(client_width, client_height, vertices[0].v2),
-			to_screen_coords(client_width, client_height, vertices[1].v2),
-			to_screen_coords(client_width, client_height, vertices[2].v2)
-		};
-
-		auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
-
-		auto intensity = normal.normalize().dot(light_dir);
-		if (intensity > 0) {
-			
-			// The colors I get are off. They're brighter than the example. Not sure why.
-			// I know that we're not actually handling brightness properly here (128 is not half as bright as 255),
-			// but then I would expect my image to be dark (as the reference image is) not very bright (as mine is).
-			auto grey = (u8)(intensity * 255);
-			Global_Buffer.draw_triangle(triangle, client_width, client_height, Color{ grey, grey, grey, 255 });
-		}
-	}
 
 	while (GlobalRunning) {
 		MSG message;
@@ -138,6 +107,35 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 			TranslateMessage(&message);
 			DispatchMessageA(&message);
 		}
+
+		Global_World.clear(BLACK);
+
+		for (auto index = 0; index < obj.faces.count; ++index) {
+			auto &face = obj.faces[index];
+			Vector3<f32> vertices[] =
+			{
+				obj.verts[face.vertex_indices.x].v3,
+				obj.verts[face.vertex_indices.y].v3,
+				obj.verts[face.vertex_indices.z].v3
+			};
+
+			Triangle<f32> triangle = { vertices[0], vertices[1], vertices[2] };
+
+			auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
+
+			auto intensity = normal.normalize().dot(light_dir);
+			if (intensity > 0) {
+				// The colors I get are off. They're brighter than the example. Not sure why.
+				// I know that we're not actually handling brightness properly here (128 is not half as bright as 255),
+				// but then I would expect my image to be dark (as the reference image is) not very bright (as mine is).
+				auto grey = (u8)(intensity * 255);
+				Global_World.draw_triangle(triangle, Color{ grey, grey, grey, 255 });
+			}
+		}
+
+		auto context = GetDC(window);
+		Global_World.render(context);
+		ReleaseDC(window, context);
 	}
 
 	return 0;

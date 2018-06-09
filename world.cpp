@@ -1,19 +1,31 @@
 #include <math.h>
 #include <algorithm>
 
-#include "backbuffer.h"
+#include "types.h"
+#include "world.h"
 #include "color.h"
 
-void Backbuffer::render(HDC context) {
+void World::render(HDC context) {
 	// Could probably actually handle resizing and such, but whatever.
+	auto width = buffer.width;
+	auto height = buffer.height;
+	auto memory = buffer.memory;
+	auto info = buffer.info;
+
 	StretchDIBits(context, 0, 0, width, height, 0, 0, width, height, memory, &info, DIB_RGB_COLORS, SRCCOPY);
 }
 
-void Backbuffer::clear(const Color &color) {
-	for (auto row = 0; row < width; ++row) {
-		for (auto col = 0; col < height; ++col) {
-			auto row_byte_offset = row * bytes_per_pixel;
-			auto pixel = (u32 *)&(memory[col * stride + row_byte_offset]);
+void World::clear(const Color &color) {
+	auto width = buffer.width;
+	auto height = buffer.height;
+	auto bytes_per_pixel = buffer.bytes_per_pixel;
+	auto memory = buffer.memory;
+	auto stride = buffer.stride;
+
+	for (auto y = 0; y < height; ++y) {
+		for (auto x = 0; x < width; ++x) {
+			auto x_offset = x * bytes_per_pixel;
+			auto pixel = (u32 *)&(memory[y * stride + x_offset]);
 			
 			// ARGB
 			auto red = color.r;
@@ -24,13 +36,19 @@ void Backbuffer::clear(const Color &color) {
 	}
 }
 
-void Backbuffer::set(int x, int y, const Color &color) {
+void World::set(int x, int y, const Color &color) {
+	auto width = buffer.width;
+	auto height = buffer.height;
+	auto bytes_per_pixel = buffer.bytes_per_pixel;
+	auto memory = buffer.memory;
+	auto stride = buffer.stride;
+
 	if (x < 0 || y < 0 || x >= width || y >= height) {
 		return;
 	}
 
-	auto x_byte_offset = x * bytes_per_pixel;
-	auto pixel = (u32 *)&(memory[(y * stride) + x_byte_offset]);
+	auto x_offset = x * bytes_per_pixel;
+	auto pixel = (u32 *)&(memory[(y * stride) + x_offset]);
 
 	// ARGB
 	auto red = color.r;
@@ -39,7 +57,7 @@ void Backbuffer::set(int x, int y, const Color &color) {
 	*pixel = 0xFF << 24 | red << 16 | green << 8 | blue;
 }
 
-void Backbuffer::draw_line(int x0, int y0, int x1, int y1, const Color &color) {
+void World::draw_line(int x0, int y0, int x1, int y1, const Color &color) {
 	auto steep = false;
 
 	if (abs(x0 - x1) < abs(y0 - y1)) {
@@ -79,11 +97,11 @@ void Backbuffer::draw_line(int x0, int y0, int x1, int y1, const Color &color) {
 	}
 }
 
-void Backbuffer::draw_line(Vector2<int> p1, Vector2<int> p2, const Color &color) {
+void World::draw_line(Vector2<int> p1, Vector2<int> p2, const Color &color) {
 	draw_line(p1.x, p1.y, p2.x, p2.y, color);
 }
 
-void Backbuffer::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, const Color &color) {
+void World::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, const Color &color) {
 	if (t0.y == t1.y && t0.y == t2.y) return;
 
 	if (t0.y > t1.y) std::swap(t0, t1);
@@ -109,24 +127,37 @@ void Backbuffer::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2
 		if (left_end_point.x > right_end_point.x) std::swap(left_end_point, right_end_point);
 
 		for (auto x = left_end_point.x; x <= right_end_point.x; ++x) {
-			// This might be the culprit for the artifacting?
-			// This is really one of those things that I wish I had someone to ask.
 			set(x, (lowest.y + y), color);
 		}
 	}
 }
 
-void Backbuffer::draw_triangle(const Triangle<int> &triangle, int width, int height, const Color &color) {
-	auto min_x = max(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), 0);
-	auto max_x = min(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), width);
-	auto min_y = max(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), 0);
-	auto max_y = min(max(triangle.p1.y, max(triangle.p2.y, triangle.p3.y)), height);
+void World::draw_triangle(const Triangle<f32> &triangle, const Color &color) {
+	auto min_x = clamp(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
+	auto max_x = clamp(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
+	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
+	auto max_y = clamp(max(triangle.p1.y, max(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 
-	for (auto x = min_x; x < max_x; ++x) {
-		for (auto y = min_y; y < max_y; ++y) {
-			auto barycentric_coefficients = triangle.barycentric_coefficients_of(Vector2<int>{ x, y });
+	auto min_point = point_to_screen(Vector3<f32>{ min_x, min_y });
+	auto max_point = point_to_screen(Vector3<f32>{ max_x, max_y });
+
+	auto screen_p1 = point_to_screen(triangle.p1);
+	auto screen_p2 = point_to_screen(triangle.p2);
+	auto screen_p3 = point_to_screen(triangle.p3);
+
+	auto screen_triangle = Triangle<f32>
+	{
+		Vector3<f32>{ (f32)screen_p1.x, (f32)screen_p1.y, triangle.p1.z },
+		Vector3<f32>{ (f32)screen_p2.x, (f32)screen_p2.y, triangle.p2.z },
+		Vector3<f32>{ (f32)screen_p3.x, (f32)screen_p3.y, triangle.p3.z },
+	};
+
+	for (auto x = min_point.x; x < max_point.x; ++x) {
+		for (auto y = min_point.y; y < max_point.y; ++y) {
+			auto barycentric_coefficients = screen_triangle.barycentric_coefficients_of(Vector2<f32>{ (f32)x, (f32)y });
 			if (barycentric_coefficients.x < 0 || barycentric_coefficients.y < 0 || barycentric_coefficients.z < 0) continue;
-			set(x, y, color);
+
+			set((int)x, (int)y, color);
 		}
 	}
 }

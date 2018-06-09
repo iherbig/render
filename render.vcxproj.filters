@@ -2,18 +2,18 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="backbuffer.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="wavefront.cpp" />
+    <ClCompile Include="world.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h" />
     <ClInclude Include="color.h" />
-    <ClInclude Include="backbuffer.h" />
     <ClInclude Include="array.h" />
     <ClInclude Include="wavefront.h" />
     <ClInclude Include="vectors.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="triangle.h" />
+    <ClInclude Include="world.h" />
   </ItemGroup>
 </Project>
