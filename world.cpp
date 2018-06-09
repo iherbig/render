@@ -132,7 +132,7 @@ void World::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, con
 	}
 }
 
-void World::draw_triangle(const Triangle<f32> &triangle, const Color &color) {
+void World::draw_triangle(const Triangle<f32> &triangle, f32 *z_buffer, const Color &color) {
 	auto min_x = clamp(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto max_x = clamp(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
@@ -152,11 +152,22 @@ void World::draw_triangle(const Triangle<f32> &triangle, const Color &color) {
 		Vector3<f32>{ (f32)screen_p3.x, (f32)screen_p3.y, triangle.p3.z },
 	};
 
-	for (auto x = min_point.x; x < max_point.x; ++x) {
-		for (auto y = min_point.y; y < max_point.y; ++y) {
-			auto barycentric_coefficients = screen_triangle.barycentric_coefficients_of(Vector2<f32>{ (f32)x, (f32)y });
+	for (auto y = min_point.y; y < max_point.y; ++y) {
+		for (auto x = min_point.x; x < max_point.x; ++x) {
+			auto barycentric_coefficients = screen_triangle.barycentric_coefficients_of(x, y);
 			if (barycentric_coefficients.x < 0 || barycentric_coefficients.y < 0 || barycentric_coefficients.z < 0) continue;
 
+			// Not exactly sure why the depth has to be non-negative. 
+			// Actually, I'm not even sure why some z-values are negative.
+			// I have no idea what coordinate-space the obj is in.
+			auto depth =
+				fabs(triangle.p1.z * barycentric_coefficients.x +
+				triangle.p2.z * barycentric_coefficients.y +
+				triangle.p3.z * barycentric_coefficients.z);
+
+			if (z_buffer[y * buffer.width + x] > depth) continue;
+
+			z_buffer[y * buffer.width + x] = depth;
 			set((int)x, (int)y, color);
 		}
 	}

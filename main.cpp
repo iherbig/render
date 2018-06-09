@@ -110,6 +110,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 
 		Global_World.clear(BLACK);
 
+		f32 *z_buffer = (f32 *)VirtualAlloc(0, client_height * client_width * sizeof(f32), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
 		for (auto index = 0; index < obj.faces.count; ++index) {
 			auto &face = obj.faces[index];
 			Vector3<f32> vertices[] =
@@ -129,13 +131,15 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 				// I know that we're not actually handling brightness properly here (128 is not half as bright as 255),
 				// but then I would expect my image to be dark (as the reference image is) not very bright (as mine is).
 				auto grey = (u8)(intensity * 255);
-				Global_World.draw_triangle(triangle, Color{ grey, grey, grey, 255 });
+				Global_World.draw_triangle(triangle, z_buffer, Color{ grey, grey, grey, 255 });
 			}
 		}
 
 		auto context = GetDC(window);
 		Global_World.render(context);
 		ReleaseDC(window, context);
+
+		VirtualFree(z_buffer, 0, MEM_RELEASE);
 	}
 
 	return 0;
