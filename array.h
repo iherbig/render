@@ -16,7 +16,19 @@ struct Array {
 	bool add(T elem);
 	bool resize(int new_size);
 	T& operator[](int index);
+	bool contains(T elem);
 };
+
+template <typename T>
+bool Array<T>::contains(T elem) {
+	for (auto index = 0; index < count; ++index) {
+		if (arr[index] == elem) {
+			return true;
+		}
+	}
+
+	return false;
+}
 
 template <typename T>
 bool Array<T>::resize(int new_size) {

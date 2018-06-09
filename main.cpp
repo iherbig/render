@@ -11,9 +11,9 @@
 
 static bool GlobalRunning = true;
 
-static Backbuffer GlobalBuffer;
+static Backbuffer Global_Buffer;
 
-static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 	// If I put this in a custom proc, then the WM_DESTROY, WM_CLOSE, and WM_QUIT messages are never sent to that proc.
 	// I wonder what's going on there...
 	switch (message)
@@ -29,34 +29,55 @@ static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wParam, LP
 	{
 		PAINTSTRUCT paint;
 		auto context = BeginPaint(window, &paint);
-		GlobalBuffer.render(context);
+		Global_Buffer.render(context);
 		EndPaint(window, &paint);
 	} break;
 
 	default:
 	{
-		return DefWindowProcA(window, message, wParam, lParam);
+		return DefWindowProcA(window, message, w_param, l_param);
 	} break;
 	}
 
 	return 0;
 }
 
-int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR commandLine, int showCode) {
-	WNDCLASSEX windowClass = {};
+inline Vector2<int> to_screen_coords(int client_width, int client_height, Vector2<f32> point) {
+	Vector2<int> result;
+	result.x = (int)((point.x + 1) * client_width / 2.0);
+	result.y = (int)((point.y + 1) * client_height / 2.0);
+	return result;
+}
 
-	windowClass.cbSize = sizeof(WNDCLASSEX);
-	windowClass.style = CS_HREDRAW | CS_VREDRAW;
-	windowClass.lpfnWndProc = window_proc;
-	windowClass.hInstance = instance;
-	windowClass.lpszClassName = "LearnRenderWindowClass";
+int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_code) {
+	WNDCLASSEX window_class = {};
 
-	if (!RegisterClassEx(&windowClass)) {
+	window_class.cbSize = sizeof(WNDCLASSEX);
+	window_class.style = CS_HREDRAW | CS_VREDRAW;
+	window_class.lpfnWndProc = window_proc;
+	window_class.hInstance = instance;
+	window_class.lpszClassName = "LearnRenderWindowClass";
+
+	if (!RegisterClassEx(&window_class)) {
 		OutputDebugString("Bad register.\n");
 		return -1;
 	}
 
-	auto window = CreateWindowEx(0, windowClass.lpszClassName, "Renderer", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 800, 835, 0, 0, instance, 0);
+	auto client_width = 800;
+	auto client_height = 800;
+	auto window_width = client_width;
+	auto window_height = client_height;
+
+	RECT window_rect = {};
+	window_rect.bottom = client_height;
+	window_rect.right = client_width;
+
+	if (AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)) {
+		window_width = window_rect.right - window_rect.left;
+		window_height = window_rect.bottom - window_rect.top;
+	}
+
+	auto window = CreateWindowEx(0, window_class.lpszClassName, "Renderer", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, window_width, window_height, 0, 0, instance, 0);
 
 	if (!window) {
 		OutputDebugString("Bad window creation.\n");
@@ -65,48 +86,49 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR commandLi
 
 	auto obj = load_obj("data/african_head.obj");
 
-	auto width = 800;
-	auto height = 800;
+	Global_Buffer.width = client_width;
+	Global_Buffer.height = client_height;
+	Global_Buffer.bytes_per_pixel = 4;
+	Global_Buffer.stride = client_width * Global_Buffer.bytes_per_pixel;
+	Global_Buffer.memory = (u8 *)VirtualAlloc(0, client_width * client_height * Global_Buffer.bytes_per_pixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-	GlobalBuffer.width = width;
-	GlobalBuffer.height = height;
-	GlobalBuffer.bytesPerPixel = 4;
-	GlobalBuffer.stride = width * GlobalBuffer.bytesPerPixel;
-	GlobalBuffer.memory = (u8 *)VirtualAlloc(0, width * height * GlobalBuffer.bytesPerPixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	Global_Buffer.info = {};
+	Global_Buffer.info.bmiHeader.biSize = sizeof(Global_Buffer.info.bmiHeader);
+	Global_Buffer.info.bmiHeader.biWidth = client_width;
+	Global_Buffer.info.bmiHeader.biHeight = client_height;
+	Global_Buffer.info.bmiHeader.biPlanes = 1;
+	Global_Buffer.info.bmiHeader.biBitCount = 32;
+	Global_Buffer.info.bmiHeader.biCompression = BI_RGB;
 
-	GlobalBuffer.info = {};
-	GlobalBuffer.info.bmiHeader.biSize = sizeof(GlobalBuffer.info.bmiHeader);
-	GlobalBuffer.info.bmiHeader.biWidth = width;
-	GlobalBuffer.info.bmiHeader.biHeight = height;
-	GlobalBuffer.info.bmiHeader.biPlanes = 1;
-	GlobalBuffer.info.bmiHeader.biBitCount = 32;
-	GlobalBuffer.info.bmiHeader.biCompression = BI_RGB;
-
-	GlobalBuffer.clear(BLACK);
+	Global_Buffer.clear(BLACK);
 
 	auto light_dir = Vector3<f32>{ 0, 0, -1 };
-
 	for (auto index = 0; index < obj.faces.count; ++index) {
 		auto &face = obj.faces[index];
 		Vector3<f32> vertices[] =
-			{ obj.verts[face.vertex_indices.x].v3,
-			  obj.verts[face.vertex_indices.y].v3,
-			  obj.verts[face.vertex_indices.z].v3 };
+		{
+			obj.verts[face.vertex_indices.x].v3,
+			obj.verts[face.vertex_indices.y].v3,
+			obj.verts[face.vertex_indices.z].v3
+		};
 
-		// What's going on here? Why do we want the resultant vector of the two subtractions?
+		Vector2<int> screen_coords[] =
+		{
+			to_screen_coords(client_width, client_height, vertices[0].v2),
+			to_screen_coords(client_width, client_height, vertices[1].v2),
+			to_screen_coords(client_width, client_height, vertices[2].v2)
+		};
+
 		auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
 
-		auto intensity = normalize(normal).dot(light_dir);
+		auto intensity = normal.normalize().dot(light_dir);
 		if (intensity > 0) {
 			
-			// The colors I get are off. They're brighter than the example. Not sure why. My cross product is fine.
-			// I think my normalize is fine, and so is my dot product. Perhaps it's the cast here.
+			// The colors I get are off. They're brighter than the example. Not sure why.
+			// I know that we're not actually handling brightness properly here (128 is not half as bright as 255),
+			// but then I would expect my image to be dark (as the reference image is) not very bright (as mine is).
 			auto grey = (u8)(intensity * 255);
-			GlobalBuffer.draw_triangle(
-				Vector2<f32>{ (vertices[0].x + 1) * width / 2.0f, (vertices[0].y + 1) * height / 2.0f },
-				Vector2<f32>{ (vertices[1].x + 1) * width / 2.0f, (vertices[1].y + 1) * height / 2.0f },
-				Vector2<f32>{ (vertices[2].x + 1) * width / 2.0f, (vertices[2].y + 1) * height / 2.0f },
-				Color{ grey, grey, grey });
+			Global_Buffer.draw_triangle(screen_coords[0], screen_coords[1], screen_coords[2], Color{ grey, grey, grey, 255 });
 		}
 	}
 
@@ -116,7 +138,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR commandLi
 			TranslateMessage(&message);
 			DispatchMessageA(&message);
 		}
-
 	}
 
 	return 0;

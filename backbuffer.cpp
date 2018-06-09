@@ -12,9 +12,14 @@ void Backbuffer::render(HDC context) {
 void Backbuffer::clear(const Color &color) {
 	for (auto row = 0; row < width; ++row) {
 		for (auto col = 0; col < height; ++col) {
-			auto row_byte_offset = row * bytesPerPixel;
+			auto row_byte_offset = row * bytes_per_pixel;
 			auto pixel = (u32 *)&(memory[col * stride + row_byte_offset]);
-			*pixel = 255 << 24 | (int)(255 * color.r) << 16 | (int)(255 * color.g) << 8 | (int)color.b;
+			
+			// ARGB
+			auto red = color.r;
+			auto green = color.g;
+			auto blue = color.b;
+			*pixel = 0xFF << 24 | red << 16 | green << 8 | blue;
 		}
 	}
 }
@@ -24,7 +29,7 @@ void Backbuffer::set(int x, int y, const Color &color) {
 		return;
 	}
 
-	auto x_byte_offset = x * bytesPerPixel;
+	auto x_byte_offset = x * bytes_per_pixel;
 	auto pixel = (u32 *)&(memory[(y * stride) + x_byte_offset]);
 
 	// ARGB
@@ -74,13 +79,13 @@ void Backbuffer::draw_line(int x0, int y0, int x1, int y1, const Color &color) {
 	}
 }
 
-void Backbuffer::draw_line(Vector2<f32> p1, Vector2<f32> p2, const Color &color) {
-	draw_line((int)p1.x, (int)p1.y, (int)p2.x, (int)p2.y, color);
+void Backbuffer::draw_line(Vector2<int> p1, Vector2<int> p2, const Color &color) {
+	draw_line(p1.x, p1.y, p2.x, p2.y, color);
 }
 
 // This is getting some artifacting in the drawing.
 // Some of the triangles aren't connecting.
-void Backbuffer::draw_triangle(Vector2<f32> t0, Vector2<f32> t1, Vector2<f32> t2, const Color &color) {
+void Backbuffer::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, const Color &color) {
 	if (t0.y == t1.y && t0.y == t2.y) return;
 
 	if (t0.y > t1.y) std::swap(t0, t1);
@@ -91,7 +96,7 @@ void Backbuffer::draw_triangle(Vector2<f32> t0, Vector2<f32> t1, Vector2<f32> t2
 	auto middle = t1;
 	auto lowest = t0;
 
-	auto total_height = (int)(highest.y - lowest.y);
+	auto total_height = (highest.y - lowest.y);
 
 	for (auto y = 0; y < total_height; y++) {
 		auto second_half = y > middle.y - lowest.y || middle.y == lowest.y;
@@ -105,10 +110,10 @@ void Backbuffer::draw_triangle(Vector2<f32> t0, Vector2<f32> t1, Vector2<f32> t2
 
 		if (left_end_point.x > right_end_point.x) std::swap(left_end_point, right_end_point);
 
-		for (auto x = (int)left_end_point.x; x <= right_end_point.x; ++x) {
+		for (auto x = left_end_point.x; x <= right_end_point.x; ++x) {
 			// This might be the culprit for the artifacting?
 			// This is really one of those things that I wish I had someone to ask.
-			set(x, (int)(lowest.y + y), color);
+			set(x, (lowest.y + y), color);
 		}
 	}
 }
