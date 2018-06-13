@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="tgaimage.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="wavefront.cpp" />
     <ClCompile Include="world.cpp" />
@@ -27,6 +28,7 @@
   <ItemGroup>
     <ClInclude Include="array.h" />
     <ClInclude Include="color.h" />
+    <ClInclude Include="tgaimage.h" />
     <ClInclude Include="triangle.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="vectors.h" />

@@ -13,6 +13,8 @@ WavefrontObj load_obj(const char *file_name) {
 		return result;
 	}
 
+	defer { VirtualFree(file_contents.result, 0, MEM_RELEASE); };
+
 	char *cursor_tracker;
 	char *line_tracker;
 	auto line = strtok_s(cursor, "\n", &cursor_tracker);
@@ -166,6 +168,5 @@ WavefrontObj load_obj(const char *file_name) {
 		line = strtok_s(NULL, "\n", &cursor_tracker);
 	} while (line);
 
-	VirtualFree(file_contents.result, 0, MEM_RELEASE);
 	return result;
 }

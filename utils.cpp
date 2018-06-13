@@ -19,7 +19,7 @@ FileReadResult read_entire_file(const char *file_name) {
 	assert(file_size.QuadPart <= 0xFFFFFFFF);
 	auto file_size_32 = (u32)file_size.QuadPart;
 
-	char *result = (char *)VirtualAlloc(0, file_size_32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	auto result = (char *)VirtualAlloc(0, file_size_32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	if (!result) {
 		return read_result;
 	}

@@ -9,6 +9,7 @@
 #include "vectors.h"
 #include "wavefront.h"
 #include "utils.h"
+#include "tgaimage.h"
 
 static bool GlobalRunning = true;
 
@@ -102,6 +103,21 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 
 	auto light_dir = Vector3<f32>{ 0, 0, -1 };
 
+	auto z_buffer_length = client_height * client_width;
+
+	// Why bother free it, it'll live throughout the lifetime of the program.
+	auto z_buffer = (f32 *)VirtualAlloc(0, z_buffer_length * sizeof(f32), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
+	auto texture_load_result = load_tga_image("data/african_head_diffuse.tga");
+
+	if (!texture_load_result.loaded) {
+		return -1;
+	}
+
+	assert(texture_load_result.loaded);
+
+	auto texture = texture_load_result.image;
+
 	while (GlobalRunning) {
 		MSG message;
 		while (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
@@ -111,8 +127,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 
 		Global_World.clear(BLACK);
 
-		auto z_buffer_length = client_height * client_width;
-		f32 *z_buffer = (f32 *)VirtualAlloc(0, z_buffer_length * sizeof(f32), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 		for (auto index = 0; index < z_buffer_length; ++index) {
 			z_buffer[index] = -1;
 		}
@@ -143,8 +157,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 		auto context = GetDC(window);
 		Global_World.render(context);
 		ReleaseDC(window, context);
-
-		VirtualFree(z_buffer, 0, MEM_RELEASE);
 	}
 
 	return 0;
