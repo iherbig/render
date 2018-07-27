@@ -13,26 +13,14 @@
 
 static bool GlobalRunning = true;
 
-static World Global_World;
-
 static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 	// If I put this in a custom proc, then the WM_DESTROY, WM_CLOSE, and WM_QUIT messages are never sent to that proc.
 	// I wonder what's going on there...
 	switch (message)
 	{
-	case WM_DESTROY:
 	case WM_CLOSE:
-	case WM_QUIT:
 	{
 		GlobalRunning = false;
-	} break;
-
-	case WM_PAINT:
-	{
-		PAINTSTRUCT paint;
-		auto context = BeginPaint(window, &paint);
-		Global_World.render(context);
-		EndPaint(window, &paint);
 	} break;
 
 	default:
@@ -42,6 +30,27 @@ static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, L
 	}
 
 	return 0;
+}
+
+static void handle_message(HWND window, World *world, MSG message) {
+	switch (message.message) {
+	case WM_QUIT:
+		GlobalRunning = false;
+		break;
+
+	case WM_PAINT:
+	{
+		PAINTSTRUCT paint;
+		auto context = BeginPaint(window, &paint);
+		world->render(context);
+		EndPaint(window, &paint);
+	} break;
+
+	default:
+		TranslateMessage(&message);
+		DispatchMessage(&message);
+		break;
+	}
 }
 
 inline Vector2<int> to_screen_coords(int client_width, int client_height, Vector2<f32> point) {
@@ -86,18 +95,20 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 		return -2;
 	}
 
-	Global_World.buffer.width = client_width;
-	Global_World.buffer.height = client_height;
-	Global_World.buffer.bytes_per_pixel = 4;
-	Global_World.buffer.stride = client_width * Global_World.buffer.bytes_per_pixel;
-	Global_World.buffer.memory = (u8 *)VirtualAlloc(0, client_width * client_height * Global_World.buffer.bytes_per_pixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	World world = {};
 
-	Global_World.buffer.info.bmiHeader.biSize = sizeof(Global_World.buffer.info.bmiHeader);
-	Global_World.buffer.info.bmiHeader.biWidth = client_width;
-	Global_World.buffer.info.bmiHeader.biHeight = client_height;
-	Global_World.buffer.info.bmiHeader.biPlanes = 1;
-	Global_World.buffer.info.bmiHeader.biBitCount = 32;
-	Global_World.buffer.info.bmiHeader.biCompression = BI_RGB;
+	world.buffer.width = client_width;
+	world.buffer.height = client_height;
+	world.buffer.bytes_per_pixel = 4;
+	world.buffer.stride = client_width * world.buffer.bytes_per_pixel;
+	world.buffer.memory = (u8 *)VirtualAlloc(0, client_width * client_height * world.buffer.bytes_per_pixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
+	world.buffer.info.bmiHeader.biSize = sizeof(world.buffer.info.bmiHeader);
+	world.buffer.info.bmiHeader.biWidth = client_width;
+	world.buffer.info.bmiHeader.biHeight = client_height;
+	world.buffer.info.bmiHeader.biPlanes = 1;
+	world.buffer.info.bmiHeader.biBitCount = 32;
+	world.buffer.info.bmiHeader.biCompression = BI_RGB;
 
 	auto obj = load_obj("data/african_head.obj");
 
@@ -121,11 +132,10 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 	while (GlobalRunning) {
 		MSG message;
 		while (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&message);
-			DispatchMessageA(&message);
+			handle_message(window, &world, message);
 		}
 
-		Global_World.clear(BLACK);
+		world.clear(BLACK);
 
 		for (auto index = 0; index < z_buffer_length; ++index) {
 			z_buffer[index] = -1;
@@ -150,12 +160,12 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 				// I know that we're not actually handling brightness properly here (128 is not half as bright as 255),
 				// but then I would expect my image to be dark (as the reference image is) not very bright (as mine is).
 				auto grey = (u8)(intensity * 255);
-				Global_World.draw_triangle(triangle, z_buffer, Color{ grey, grey, grey, 255 });
+				world.draw_triangle(triangle, z_buffer, Color{ grey, grey, grey, 255 });
 			}
 		}
 
 		auto context = GetDC(window);
-		Global_World.render(context);
+		world.render(context);
 		ReleaseDC(window, context);
 	}
 
