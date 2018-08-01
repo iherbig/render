@@ -110,7 +110,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 	world.buffer.info.bmiHeader.biBitCount = 32;
 	world.buffer.info.bmiHeader.biCompression = BI_RGB;
 
-	auto obj = load_obj("data/african_head.obj");
+	auto obj = load_obj("data/african_head.wfo");
 
 	auto light_dir = Vector3<f32>{ 0, 0, -1 };
 
