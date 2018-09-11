@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "color.h"
 
 #pragma pack(push, 1)
 struct TgaImageHeader {
@@ -39,4 +40,12 @@ struct TgaImageLoadResult {
 	bool loaded;
 };
 
+struct TgaImagePixel {
+	u8 *next_packet;
+	Color current_pixel_color;
+	u8 num_pixels_in_run;
+	bool raw_packet;
+};
+
 TgaImageLoadResult load_tga_image(const char *file_name);
+Color get_next_pixel(TgaImagePixel *pixel_data);

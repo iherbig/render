@@ -74,8 +74,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 		return -1;
 	}
 
-	auto client_width = 800;
-	auto client_height = 800;
+	auto client_width = 1024;
+	auto client_height = 1024;
 	auto window_width = client_width;
 	auto window_height = client_height;
 
@@ -163,6 +163,14 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 				world.draw_triangle(triangle, z_buffer, Color{ grey, grey, grey, 255 });
 			}
 		}
+
+		/*TgaImagePixel pixel = {};
+		pixel.next_packet = texture.pixel_data;
+		for (auto row = 0; row < texture.header->image_spec.image_height; ++row) {
+			for (auto col = 0; col < texture.header->image_spec.image_width; ++col) {
+				world.set(col, row, get_next_pixel(&pixel));
+			}
+		}*/
 
 		auto context = GetDC(window);
 		world.render(context);
