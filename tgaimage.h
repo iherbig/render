@@ -28,7 +28,8 @@ struct TgaImageHeader {
 
 struct TgaImage {
 	TgaImageHeader *header;
-	u8 *pixel_data;
+	u8 *pixel_packets;
+	Color *pixels;
 };
 
 // The result of loading the tga image. The file contents are not freed.
@@ -49,3 +50,4 @@ struct TgaImagePixel {
 
 TgaImageLoadResult load_tga_image(const char *file_name);
 Color get_next_pixel(TgaImagePixel *pixel_data);
+void decompress_texture(TgaImage *texture);

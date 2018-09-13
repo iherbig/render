@@ -25,7 +25,7 @@ TgaImageLoadResult load_tga_image(const char *file_name) {
 
 	contents += 18;
 
-	result.image.pixel_data = (u8 *)contents;
+	result.image.pixel_packets = (u8 *)contents;
 
 	assert(result.image.header->image_type == 10);
 	assert(result.image.header->color_map_type == 0);
@@ -55,4 +55,17 @@ Color get_next_pixel(TgaImagePixel *pixel_data) {
 	pixel_data->num_pixels_in_run--;
 
 	return pixel_data->current_pixel_color;
+}
+
+void decompress_texture(TgaImage *texture) {
+	auto stride = texture->header->image_spec.image_width;
+	texture->pixels = (Color *)malloc(texture->header->image_spec.image_width * texture->header->image_spec.image_width * sizeof(Color));
+
+	TgaImagePixel pixel = {};
+	pixel.next_packet = texture->pixel_packets;
+	for (auto row = 0; row < texture->header->image_spec.image_height; ++row) {
+		for (auto col = 0; col < texture->header->image_spec.image_width; ++col) {
+			texture->pixels[row * stride + col] = get_next_pixel(&pixel);
+		}
+	}
 }

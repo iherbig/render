@@ -128,6 +128,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 	assert(texture_load_result.loaded);
 
 	auto texture = texture_load_result.image;
+	decompress_texture(&texture);
 
 	while (GlobalRunning) {
 		MSG message;
@@ -150,6 +151,13 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 				obj.verts[face.vertex_indices.z].v3
 			};
 
+			Vector2<f32> texture_coords[] =
+			{
+				obj.text_coords[face.texture_indices.x].v2,
+				obj.text_coords[face.texture_indices.y].v2,
+				obj.text_coords[face.texture_indices.z].v2,
+			};
+
 			Triangle<f32> triangle = { vertices[0], vertices[1], vertices[2] };
 
 			auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
@@ -163,14 +171,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 				world.draw_triangle(triangle, z_buffer, Color{ grey, grey, grey, 255 });
 			}
 		}
-
-		/*TgaImagePixel pixel = {};
-		pixel.next_packet = texture.pixel_data;
-		for (auto row = 0; row < texture.header->image_spec.image_height; ++row) {
-			for (auto col = 0; col < texture.header->image_spec.image_width; ++col) {
-				world.set(col, row, get_next_pixel(&pixel));
-			}
-		}*/
 
 		auto context = GetDC(window);
 		world.render(context);
