@@ -4,6 +4,7 @@
 #include "types.h"
 #include "world.h"
 #include "color.h"
+#include "texture.h"
 
 void World::render(HDC context) {
 	// Could probably actually handle resizing and such, but whatever.
@@ -166,6 +167,70 @@ void World::draw_triangle(const Triangle<f32> &triangle, f32 *z_buffer, const Co
 				triangle.p3.z * barycentric_coefficients.z;
 
 			if (z_buffer[y * buffer.width + x] > depth) continue;
+
+			z_buffer[y * buffer.width + x] = depth;
+			set((int)x, (int)y, color);
+		}
+	}
+}
+
+void World::draw_triangle(const Triangle<f32> &triangle, const TextureMap &texture_map, f32 *z_buffer, f32 light_intensity) {
+	auto min_x = clamp(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
+	auto max_x = clamp(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
+	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
+	auto max_y = clamp(max(triangle.p1.y, max(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
+
+	auto min_point = point_to_screen(Vector3<f32>{ min_x, min_y });
+	auto max_point = point_to_screen(Vector3<f32>{ max_x, max_y });
+
+	auto screen_p1 = point_to_screen(triangle.p1);
+	auto screen_p2 = point_to_screen(triangle.p2);
+	auto screen_p3 = point_to_screen(triangle.p3);
+
+	auto screen_triangle = Triangle<f32>
+	{
+		Vector3<f32>{ (f32)screen_p1.x, (f32)screen_p1.y, triangle.p1.z },
+		Vector3<f32>{ (f32)screen_p2.x, (f32)screen_p2.y, triangle.p2.z },
+		Vector3<f32>{ (f32)screen_p3.x, (f32)screen_p3.y, triangle.p3.z },
+	};
+
+	// This loop could be pretty easily parallelized.
+	// foreach coordinate (x, y):
+	//    new thread(coordinate, screen_triangle, triangle, z_value_place, color_place)
+	// So rather than indexing into the buffers themselves, each thread directly inserts
+	// the z-buffer and pixel color values.
+	for (auto y = min_point.y; y < max_point.y; ++y) {
+		for (auto x = min_point.x; x < max_point.x; ++x) {
+			auto barycentric_coefficients = screen_triangle.barycentric_coefficients_of(x, y);
+			if (barycentric_coefficients.x < 0 || barycentric_coefficients.y < 0 || barycentric_coefficients.z < 0) continue;
+
+			// Not exactly sure why the depth has to be non-negative. 
+			// Actually, I'm not even sure why some z-values are negative.
+			// I have no idea what coordinate-space the obj is in.
+			auto depth =
+				triangle.p1.z * barycentric_coefficients.x +
+				triangle.p2.z * barycentric_coefficients.y +
+				triangle.p3.z * barycentric_coefficients.z;
+
+			if (z_buffer[y * buffer.width + x] > depth) continue;
+
+			// We have the barycentric coefficients, so we can use them to find out where to index into the texture map.
+			// I spent way too long trying to figure out how to do this. But I'd forgotten that barycentric coefficients literally
+			// are the value that you want. "What percentage of each vertex is a given point?"
+			
+			auto texture_map_bary_coord_x = barycentric_coefficients.x * texture_map.uvs[0].x + barycentric_coefficients.y * texture_map.uvs[1].x + barycentric_coefficients.z * texture_map.uvs[2].x;
+			auto texture_map_bary_coord_y = barycentric_coefficients.x * texture_map.uvs[0].y + barycentric_coefficients.y * texture_map.uvs[1].y + barycentric_coefficients.z * texture_map.uvs[2].y;
+			auto texture_map_coord_x = (int)(texture_map_bary_coord_x * texture_map.width);
+			auto texture_map_coord_y = (int)(texture_map_bary_coord_y * texture_map.height);
+
+			auto texture_color_index = texture_map_coord_y * texture_map.width + texture_map_coord_x;
+			
+			auto color = texture_map.pixel_data[texture_color_index];
+			color.r = (u8)(color.r * light_intensity);
+			color.g = (u8)(color.g * light_intensity);
+			color.b = (u8)(color.b * light_intensity);
+
+			//auto color = Color{ 255 * light_intensity, 255 * light_intensity, 255 * light_intensity, 255 };
 
 			z_buffer[y * buffer.width + x] = depth;
 			set((int)x, (int)y, color);

@@ -17,6 +17,8 @@ struct Backbuffer {
 	u8 *memory;
 };
 
+struct TextureMap;
+
 struct World {
 	Backbuffer buffer;
 
@@ -27,6 +29,7 @@ struct World {
 	void clear(const Color &color);
 	void draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, const Color &color);
 	void draw_triangle(const Triangle<f32> &triangle, f32 *z_buffer, const Color &color);
+	void draw_triangle(const Triangle<f32> &triangle, const TextureMap &texture_map, f32 *z_buffer, f32 light_intensity);
 
 	inline Vector2<int> point_to_screen(Vector3<f32> point) {
 		Vector2<int> result;

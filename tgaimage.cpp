@@ -3,6 +3,7 @@
 
 #include "tgaimage.h"
 #include "utils.h"
+#include "texture.h"
 
 TgaImageLoadResult load_tga_image(const char *file_name) {
 	TgaImageLoadResult result;
@@ -33,7 +34,7 @@ TgaImageLoadResult load_tga_image(const char *file_name) {
 	return result;
 }
 
-Color get_next_pixel(TgaImagePixel *pixel_data) {
+Color get_next_pixel(TgaImagePixelCursor *pixel_data) {
 	bool need_pixel = false;
 	if (pixel_data->num_pixels_in_run == 0) {
 		auto pixel_header = *pixel_data->next_packet++;
@@ -49,7 +50,7 @@ Color get_next_pixel(TgaImagePixel *pixel_data) {
 		auto g = *pixel_data->next_packet++;
 		auto r = *pixel_data->next_packet++;
 
-		pixel_data->current_pixel_color = Color{ r, g, b, 255 };
+		pixel_data->current_pixel_color = Color(r, g, b, 255);
 	}
 
 	pixel_data->num_pixels_in_run--;
@@ -57,15 +58,19 @@ Color get_next_pixel(TgaImagePixel *pixel_data) {
 	return pixel_data->current_pixel_color;
 }
 
-void decompress_texture(TgaImage *texture) {
-	auto stride = texture->header->image_spec.image_width;
-	texture->pixels = (Color *)malloc(texture->header->image_spec.image_width * texture->header->image_spec.image_width * sizeof(Color));
+Color *decompress_tga_image(const TgaImage &texture) {
+	auto stride = texture.header->image_spec.image_width;
 
-	TgaImagePixel pixel = {};
-	pixel.next_packet = texture->pixel_packets;
-	for (auto row = 0; row < texture->header->image_spec.image_height; ++row) {
-		for (auto col = 0; col < texture->header->image_spec.image_width; ++col) {
-			texture->pixels[row * stride + col] = get_next_pixel(&pixel);
+	auto result = (Color *)malloc(texture.header->image_spec.image_width * texture.header->image_spec.image_width * sizeof(Color));
+
+	TgaImagePixelCursor pixel = {};
+	pixel.next_packet = texture.pixel_packets;
+
+	for (auto row = 0; row < texture.header->image_spec.image_height; ++row) {
+		for (auto col = 0; col < texture.header->image_spec.image_width; ++col) {
+			result[row * stride + col] = get_next_pixel(&pixel);
 		}
 	}
+
+	return result;
 }

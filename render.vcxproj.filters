@@ -17,5 +17,6 @@
     <ClInclude Include="triangle.h" />
     <ClInclude Include="world.h" />
     <ClInclude Include="tgaimage.h" />
+    <ClInclude Include="texture.h" />
   </ItemGroup>
 </Project>

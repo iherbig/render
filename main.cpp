@@ -10,6 +10,7 @@
 #include "wavefront.h"
 #include "utils.h"
 #include "tgaimage.h"
+#include "texture.h"
 
 static bool GlobalRunning = true;
 
@@ -60,7 +61,9 @@ inline Vector2<int> to_screen_coords(int client_width, int client_height, Vector
 	return result;
 }
 
-int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_code) {
+//int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_code) {
+int main() {
+	auto instance = GetModuleHandle(NULL);
 	WNDCLASSEX window_class = {};
 
 	window_class.cbSize = sizeof(WNDCLASSEX);
@@ -119,22 +122,31 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 	// Why bother free it, it'll live throughout the lifetime of the program.
 	auto z_buffer = (f32 *)VirtualAlloc(0, z_buffer_length * sizeof(f32), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-	auto texture_load_result = load_tga_image("data/african_head_diffuse.tga");
+	auto image_load_result = load_tga_image("data/african_head_diffuse.tga");
 
-	if (!texture_load_result.loaded) {
-		return -1;
-	}
+	if (!image_load_result.loaded) return -1;
 
-	assert(texture_load_result.loaded);
+	assert(image_load_result.loaded);
 
-	auto texture = texture_load_result.image;
-	decompress_texture(&texture);
+	auto image = image_load_result.image;
+	decompress_tga_image(image);
 
+	timeBeginPeriod(1);
+
+	auto last_time = timeGetTime();
 	while (GlobalRunning) {
 		MSG message;
 		while (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
 			handle_message(window, &world, message);
 		}
+
+		// At the moment, it's taking about a half second to render each frame.
+		// That's crazy long. I might try to parallelize the draw_triangle call as much
+		// as possible at some point, but I don't want to get stuck figuring out how
+		// to use whatever threading API that Windows has.
+		auto current_time = timeGetTime();
+		printf("FPS %ld\n", 1000 / (current_time - last_time));
+		last_time = current_time;
 
 		world.clear(BLACK);
 
@@ -151,25 +163,19 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_
 				obj.verts[face.vertex_indices.z].v3
 			};
 
-			Vector2<f32> texture_coords[] =
-			{
-				obj.text_coords[face.texture_indices.x].v2,
-				obj.text_coords[face.texture_indices.y].v2,
-				obj.text_coords[face.texture_indices.z].v2,
-			};
+			TextureMap texture_map;
+			texture_map.dimensions = Vector2<int>{ image.header->image_spec.image_width, image.header->image_spec.image_height };
+			texture_map.uvs[0] = obj.text_coords[face.texture_indices.x].v2;
+			texture_map.uvs[1] = obj.text_coords[face.texture_indices.y].v2;
+			texture_map.uvs[2] = obj.text_coords[face.texture_indices.z].v2;
+			texture_map.pixel_data = image.pixels;
 
 			Triangle<f32> triangle = { vertices[0], vertices[1], vertices[2] };
 
 			auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
+			auto light_intensity = normal.normalize().dot(light_dir);
 
-			auto intensity = normal.normalize().dot(light_dir);
-			if (intensity > 0) {
-				// The colors I get are off. They're brighter than the example. Not sure why.
-				// I know that we're not actually handling brightness properly here (128 is not half as bright as 255),
-				// but then I would expect my image to be dark (as the reference image is) not very bright (as mine is).
-				auto grey = (u8)(intensity * 255);
-				world.draw_triangle(triangle, z_buffer, Color{ grey, grey, grey, 255 });
-			}
+			if (light_intensity > 0) world.draw_triangle(triangle, texture_map, z_buffer, light_intensity);
 		}
 
 		auto context = GetDC(window);

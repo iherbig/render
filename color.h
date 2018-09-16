@@ -7,6 +7,15 @@ struct Color {
 	u8 g;
 	u8 b;
 	u8 a;
+
+	Color(f32 red, f32 green, f32 blue, f32 alpha) {
+		r = (u8)red;
+		g = (u8)green;
+		b = (u8)blue;
+		a = (u8)alpha;
+	}
+
+	Color() : r(), g(), b(), a() {}
 };
 
 const Color WHITE = Color{ 255, 255, 255, 255 };

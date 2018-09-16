@@ -41,7 +41,7 @@ struct TgaImageLoadResult {
 	bool loaded;
 };
 
-struct TgaImagePixel {
+struct TgaImagePixelCursor {
 	u8 *next_packet;
 	Color current_pixel_color;
 	u8 num_pixels_in_run;
@@ -49,5 +49,5 @@ struct TgaImagePixel {
 };
 
 TgaImageLoadResult load_tga_image(const char *file_name);
-Color get_next_pixel(TgaImagePixel *pixel_data);
-void decompress_texture(TgaImage *texture);
+Color get_next_pixel(TgaImagePixelCursor *pixel_data);
+Color *decompress_tga_image(const TgaImage &texture);
