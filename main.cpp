@@ -129,7 +129,7 @@ int main() {
 	assert(image_load_result.loaded);
 
 	auto image = image_load_result.image;
-	decompress_tga_image(image);
+	auto texture_color_data = decompress_tga_image(image);
 
 	timeBeginPeriod(1);
 
@@ -168,7 +168,7 @@ int main() {
 			texture_map.uvs[0] = obj.text_coords[face.texture_indices.x].v2;
 			texture_map.uvs[1] = obj.text_coords[face.texture_indices.y].v2;
 			texture_map.uvs[2] = obj.text_coords[face.texture_indices.z].v2;
-			texture_map.pixel_data = image.pixels;
+			texture_map.pixel_data = texture_color_data;
 
 			Triangle<f32> triangle = { vertices[0], vertices[1], vertices[2] };
 

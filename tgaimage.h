@@ -29,7 +29,6 @@ struct TgaImageHeader {
 struct TgaImage {
 	TgaImageHeader *header;
 	u8 *pixel_packets;
-	Color *pixels;
 };
 
 // The result of loading the tga image. The file contents are not freed.
