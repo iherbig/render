@@ -30,13 +30,11 @@ struct World {
 	void draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, const Color &color);
 	void draw_triangle(const Triangle<f32> &triangle, f32 *z_buffer, const Color &color);
 	void draw_triangle(const Triangle<f32> &triangle, const TextureMap &texture_map, f32 *z_buffer, f32 light_intensity);
-
-	inline Vector2<int> point_to_screen(Vector3<f32> point) {
-		Vector2<int> result;
-
-		result.x = (int)((point.x + 1) * buffer.width / 2.0 + 0.5);
-		result.y = (int)((point.y + 1) * buffer.height / 2.0 + 0.5);
-
-		return result;
-	}
 };
+
+inline Vector2<int> to_screen_coords(int client_width, int client_height, Vector2<f32> point) {
+	Vector2<int> result;
+	result.x = (int)((point.x + 1) * client_width * 0.5f);
+	result.y = (int)((point.y + 1) * client_height * 0.5f);
+	return result;
+}

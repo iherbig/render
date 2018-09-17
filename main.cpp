@@ -54,13 +54,6 @@ static void handle_message(HWND window, World *world, MSG message) {
 	}
 }
 
-inline Vector2<int> to_screen_coords(int client_width, int client_height, Vector2<f32> point) {
-	Vector2<int> result;
-	result.x = (int)((point.x + 1) * client_width / 2.0);
-	result.y = (int)((point.y + 1) * client_height / 2.0);
-	return result;
-}
-
 //int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_code) {
 int main() {
 	auto instance = GetModuleHandle(NULL);

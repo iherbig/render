@@ -139,12 +139,12 @@ void World::draw_triangle(const Triangle<f32> &triangle, f32 *z_buffer, const Co
 	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 	auto max_y = clamp(max(triangle.p1.y, max(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 
-	auto min_point = point_to_screen(Vector3<f32>{ min_x, min_y });
-	auto max_point = point_to_screen(Vector3<f32>{ max_x, max_y });
+	auto min_point = to_screen_coords(buffer.width, buffer.height, Vector2<f32>{ min_x, min_y });
+	auto max_point = to_screen_coords(buffer.width, buffer.height, Vector2<f32>{ max_x, max_y });
 
-	auto screen_p1 = point_to_screen(triangle.p1);
-	auto screen_p2 = point_to_screen(triangle.p2);
-	auto screen_p3 = point_to_screen(triangle.p3);
+	auto screen_p1 = to_screen_coords(buffer.width, buffer.height, triangle.p1.v2);
+	auto screen_p2 = to_screen_coords(buffer.width, buffer.height, triangle.p2.v2);
+	auto screen_p3 = to_screen_coords(buffer.width, buffer.height, triangle.p3.v2);
 
 	auto screen_triangle = Triangle<f32>
 	{
@@ -174,18 +174,34 @@ void World::draw_triangle(const Triangle<f32> &triangle, f32 *z_buffer, const Co
 	}
 }
 
+static inline void apply_lighting(Color &color, f32 light_intensity) {
+	color.r = (u8)(color.r * light_intensity);
+	color.g = (u8)(color.g * light_intensity);
+	color.b = (u8)(color.b * light_intensity);
+}
+
+/*
+Why does this result in the default constructors and operator= being deleted?
+
+struct SomeType;
+
+struct Foo {
+	SomeType &foo;
+};
+*/
+
 void World::draw_triangle(const Triangle<f32> &triangle, const TextureMap &texture_map, f32 *z_buffer, f32 light_intensity) {
 	auto min_x = clamp(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto max_x = clamp(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 	auto max_y = clamp(max(triangle.p1.y, max(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 
-	auto min_point = point_to_screen(Vector3<f32>{ min_x, min_y });
-	auto max_point = point_to_screen(Vector3<f32>{ max_x, max_y });
+	auto min_point = to_screen_coords(buffer.width, buffer.height, Vector2<f32>{ min_x, min_y });
+	auto max_point = to_screen_coords(buffer.width, buffer.height, Vector2<f32>{ max_x, max_y });
 
-	auto screen_p1 = point_to_screen(triangle.p1);
-	auto screen_p2 = point_to_screen(triangle.p2);
-	auto screen_p3 = point_to_screen(triangle.p3);
+	auto screen_p1 = to_screen_coords(buffer.width, buffer.height, triangle.p1.v2);
+	auto screen_p2 = to_screen_coords(buffer.width, buffer.height, triangle.p2.v2);
+	auto screen_p3 = to_screen_coords(buffer.width, buffer.height, triangle.p3.v2);
 
 	auto screen_triangle = Triangle<f32>
 	{
@@ -199,6 +215,9 @@ void World::draw_triangle(const Triangle<f32> &triangle, const TextureMap &textu
 	//    new thread(coordinate, screen_triangle, triangle, z_value_place, color_place)
 	// So rather than indexing into the buffers themselves, each thread directly inserts
 	// the z-buffer and pixel color values.
+	// I really just don't want to have to figure out the thread API. There are some things
+	// that you can't easily do in C++.
+	int thread_index = 0;
 	for (auto y = min_point.y; y < max_point.y; ++y) {
 		for (auto x = min_point.x; x < max_point.x; ++x) {
 			auto barycentric_coefficients = screen_triangle.barycentric_coefficients_of(x, y);
@@ -217,23 +236,19 @@ void World::draw_triangle(const Triangle<f32> &triangle, const TextureMap &textu
 			// We have the barycentric coefficients, so we can use them to find out where to index into the texture map.
 			// I spent way too long trying to figure out how to do this. But I'd forgotten that barycentric coefficients literally
 			// are the value that you want. "What percentage of each vertex is a given point?"
-			
 			auto texture_map_bary_coord_x = barycentric_coefficients.x * texture_map.uvs[0].x + barycentric_coefficients.y * texture_map.uvs[1].x + barycentric_coefficients.z * texture_map.uvs[2].x;
 			auto texture_map_bary_coord_y = barycentric_coefficients.x * texture_map.uvs[0].y + barycentric_coefficients.y * texture_map.uvs[1].y + barycentric_coefficients.z * texture_map.uvs[2].y;
 			auto texture_map_coord_x = (int)(texture_map_bary_coord_x * texture_map.width);
 			auto texture_map_coord_y = (int)(texture_map_bary_coord_y * texture_map.height);
 
 			auto texture_color_index = texture_map_coord_y * texture_map.width + texture_map_coord_x;
-			
-			auto color = texture_map.pixel_data[texture_color_index];
-			color.r = (u8)(color.r * light_intensity);
-			color.g = (u8)(color.g * light_intensity);
-			color.b = (u8)(color.b * light_intensity);
 
-			//auto color = Color{ 255 * light_intensity, 255 * light_intensity, 255 * light_intensity, 255 };
+			auto color = texture_map.pixel_data[texture_color_index];
+			//auto color = WHITE;
+			apply_lighting(color, light_intensity);
 
 			z_buffer[y * buffer.width + x] = depth;
-			set((int)x, (int)y, color);
+			set(x, y, color);
 		}
 	}
 }
