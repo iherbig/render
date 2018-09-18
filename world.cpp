@@ -98,11 +98,11 @@ void World::draw_line(int x0, int y0, int x1, int y1, const Color &color) {
 	}
 }
 
-void World::draw_line(Vector2<int> p1, Vector2<int> p2, const Color &color) {
+void World::draw_line(Vec2i p1, Vec2i p2, const Color &color) {
 	draw_line(p1.x, p1.y, p2.x, p2.y, color);
 }
 
-void World::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, const Color &color) {
+void World::draw_triangle(Vec2i t0, Vec2i t1, Vec2i t2, const Color &color) {
 	if (t0.y == t1.y && t0.y == t2.y) return;
 
 	if (t0.y > t1.y) std::swap(t0, t1);
@@ -133,24 +133,24 @@ void World::draw_triangle(Vector2<int> t0, Vector2<int> t1, Vector2<int> t2, con
 	}
 }
 
-void World::draw_triangle(const Triangle<f32> &triangle, f32 *z_buffer, const Color &color) {
+void World::draw_triangle(const Triangle &triangle, f32 *z_buffer, const Color &color) {
 	auto min_x = clamp(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto max_x = clamp(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 	auto max_y = clamp(max(triangle.p1.y, max(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 
-	auto min_point = to_screen_coords(buffer.width, buffer.height, Vector2<f32>{ min_x, min_y });
-	auto max_point = to_screen_coords(buffer.width, buffer.height, Vector2<f32>{ max_x, max_y });
+	auto min_point = to_screen_coords(buffer.width, buffer.height, Vec2f{ min_x, min_y });
+	auto max_point = to_screen_coords(buffer.width, buffer.height, Vec2f{ max_x, max_y });
 
 	auto screen_p1 = to_screen_coords(buffer.width, buffer.height, triangle.p1.v2);
 	auto screen_p2 = to_screen_coords(buffer.width, buffer.height, triangle.p2.v2);
 	auto screen_p3 = to_screen_coords(buffer.width, buffer.height, triangle.p3.v2);
 
-	auto screen_triangle = Triangle<f32>
+	Triangle screen_triangle =
 	{
-		Vector3<f32>{ (f32)screen_p1.x, (f32)screen_p1.y, triangle.p1.z },
-		Vector3<f32>{ (f32)screen_p2.x, (f32)screen_p2.y, triangle.p2.z },
-		Vector3<f32>{ (f32)screen_p3.x, (f32)screen_p3.y, triangle.p3.z },
+		Vec3f{ (f32)screen_p1.x, (f32)screen_p1.y, triangle.p1.z },
+		Vec3f{ (f32)screen_p2.x, (f32)screen_p2.y, triangle.p2.z },
+		Vec3f{ (f32)screen_p3.x, (f32)screen_p3.y, triangle.p3.z },
 	};
 
 	for (auto y = min_point.y; y < max_point.y; ++y) {
@@ -190,24 +190,24 @@ struct Foo {
 };
 */
 
-void World::draw_triangle(const Triangle<f32> &triangle, const TextureMap &texture_map, f32 *z_buffer, f32 light_intensity) {
+void World::draw_triangle(const Triangle &triangle, const TextureMap &texture_map, f32 *z_buffer, f32 light_intensity) {
 	auto min_x = clamp(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto max_x = clamp(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 	auto max_y = clamp(max(triangle.p1.y, max(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
 
-	auto min_point = to_screen_coords(buffer.width, buffer.height, Vector2<f32>{ min_x, min_y });
-	auto max_point = to_screen_coords(buffer.width, buffer.height, Vector2<f32>{ max_x, max_y });
+	auto min_point = to_screen_coords(buffer.width, buffer.height, Vec2f{ min_x, min_y });
+	auto max_point = to_screen_coords(buffer.width, buffer.height, Vec2f{ max_x, max_y });
 
 	auto screen_p1 = to_screen_coords(buffer.width, buffer.height, triangle.p1.v2);
 	auto screen_p2 = to_screen_coords(buffer.width, buffer.height, triangle.p2.v2);
 	auto screen_p3 = to_screen_coords(buffer.width, buffer.height, triangle.p3.v2);
 
-	auto screen_triangle = Triangle<f32>
+	Triangle screen_triangle =
 	{
-		Vector3<f32>{ (f32)screen_p1.x, (f32)screen_p1.y, triangle.p1.z },
-		Vector3<f32>{ (f32)screen_p2.x, (f32)screen_p2.y, triangle.p2.z },
-		Vector3<f32>{ (f32)screen_p3.x, (f32)screen_p3.y, triangle.p3.z },
+		Vec3f{ (f32)screen_p1.x, (f32)screen_p1.y, triangle.p1.z },
+		Vec3f{ (f32)screen_p2.x, (f32)screen_p2.y, triangle.p2.z },
+		Vec3f{ (f32)screen_p3.x, (f32)screen_p3.y, triangle.p3.z },
 	};
 
 	// This loop could be pretty easily parallelized.
@@ -217,7 +217,6 @@ void World::draw_triangle(const Triangle<f32> &triangle, const TextureMap &textu
 	// the z-buffer and pixel color values.
 	// I really just don't want to have to figure out the thread API. There are some things
 	// that you can't easily do in C++.
-	int thread_index = 0;
 	for (auto y = min_point.y; y < max_point.y; ++y) {
 		for (auto x = min_point.x; x < max_point.x; ++x) {
 			auto barycentric_coefficients = screen_triangle.barycentric_coefficients_of(x, y);

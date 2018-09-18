@@ -1,11 +1,12 @@
 #include <windows.h>
+#include <assert.h>
 #include <stdio.h>
 #include <limits>
 
+#include "stretchy_buffer.h"
 #include "types.h"
 #include "color.h"
 #include "world.h"
-#include "array.h"
 #include "vectors.h"
 #include "wavefront.h"
 #include "utils.h"
@@ -97,7 +98,7 @@ int main() {
 	world.buffer.height = client_height;
 	world.buffer.bytes_per_pixel = 4;
 	world.buffer.stride = client_width * world.buffer.bytes_per_pixel;
-	world.buffer.memory = (u8 *)VirtualAlloc(0, client_width * client_height * world.buffer.bytes_per_pixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	world.buffer.memory = (u8 *)malloc(client_width * client_height * world.buffer.bytes_per_pixel);
 
 	world.buffer.info.bmiHeader.biSize = sizeof(world.buffer.info.bmiHeader);
 	world.buffer.info.bmiHeader.biWidth = client_width;
@@ -108,12 +109,12 @@ int main() {
 
 	auto obj = load_obj("data/african_head.wfo");
 
-	auto light_dir = Vector3<f32>{ 0, 0, -1 };
+	auto light_dir = Vec3f{ 0, 0, -1 };
 
 	auto z_buffer_length = client_height * client_width;
 
 	// Why bother free it, it'll live throughout the lifetime of the program.
-	auto z_buffer = (f32 *)VirtualAlloc(0, z_buffer_length * sizeof(f32), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	auto z_buffer = (f32 *)malloc(z_buffer_length * sizeof(f32));
 
 	auto image_load_result = load_tga_image("data/african_head_diffuse.tga");
 
@@ -122,7 +123,7 @@ int main() {
 	assert(image_load_result.loaded);
 
 	auto image = image_load_result.image;
-	auto texture_color_data = decompress_tga_image(image);
+	auto texture_color_data = decompress_tga_image(&image);
 
 	timeBeginPeriod(1);
 
@@ -147,23 +148,23 @@ int main() {
 			z_buffer[index] = -1;
 		}
 
-		for (auto index = 0; index < obj.faces.count; ++index) {
-			auto &face = obj.faces[index];
-			Vector3<f32> vertices[] =
+		for (auto index = 0; index < sb_count(obj.faces); ++index) {
+			Face *face = &obj.faces[index];
+			Vec3f vertices[] =
 			{
-				obj.verts[face.vertex_indices.x].v3,
-				obj.verts[face.vertex_indices.y].v3,
-				obj.verts[face.vertex_indices.z].v3
+				obj.verts[face->vertex_indices.x].v3,
+				obj.verts[face->vertex_indices.y].v3,
+				obj.verts[face->vertex_indices.z].v3
 			};
 
 			TextureMap texture_map;
-			texture_map.dimensions = Vector2<int>{ image.header->image_spec.image_width, image.header->image_spec.image_height };
-			texture_map.uvs[0] = obj.text_coords[face.texture_indices.x].v2;
-			texture_map.uvs[1] = obj.text_coords[face.texture_indices.y].v2;
-			texture_map.uvs[2] = obj.text_coords[face.texture_indices.z].v2;
+			texture_map.dimensions = Vec2i{ image.header->image_spec.image_width, image.header->image_spec.image_height };
+			texture_map.uvs[0] = obj.text_coords[face->texture_indices.x].v2;
+			texture_map.uvs[1] = obj.text_coords[face->texture_indices.y].v2;
+			texture_map.uvs[2] = obj.text_coords[face->texture_indices.z].v2;
 			texture_map.pixel_data = texture_color_data;
 
-			Triangle<f32> triangle = { vertices[0], vertices[1], vertices[2] };
+			Triangle triangle = { vertices[0], vertices[1], vertices[2] };
 
 			auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
 			auto light_intensity = normal.normalize().dot(light_dir);

@@ -58,16 +58,16 @@ Color get_next_pixel(TgaImagePixelCursor *pixel_data) {
 	return pixel_data->current_pixel_color;
 }
 
-Color *decompress_tga_image(const TgaImage &texture) {
-	auto stride = texture.header->image_spec.image_width;
+Color *decompress_tga_image(const TgaImage *texture) {
+	auto stride = texture->header->image_spec.image_width;
 
-	auto result = (Color *)malloc(texture.header->image_spec.image_width * texture.header->image_spec.image_width * sizeof(Color));
+	auto result = (Color *)malloc(texture->header->image_spec.image_width * texture->header->image_spec.image_width * sizeof(Color));
 
 	TgaImagePixelCursor pixel = {};
-	pixel.next_packet = texture.pixel_packets;
+	pixel.next_packet = texture->pixel_packets;
 
-	for (auto row = 0; row < texture.header->image_spec.image_height; ++row) {
-		for (auto col = 0; col < texture.header->image_spec.image_width; ++col) {
+	for (auto row = 0; row < texture->header->image_spec.image_height; ++row) {
+		for (auto col = 0; col < texture->header->image_spec.image_width; ++col) {
 			result[row * stride + col] = get_next_pixel(&pixel);
 		}
 	}

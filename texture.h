@@ -7,9 +7,9 @@ struct Color;
 
 struct TextureMap {
 	Color *pixel_data;
-	Vector2<f32> uvs[3];
+	Vec2f uvs[3];
 	union {
-		Vector2<int> dimensions;
+		Vec2i dimensions;
 		struct {
 			int width;
 			int height;

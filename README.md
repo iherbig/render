@@ -4,7 +4,7 @@ Renderer following: https://github.com/ssloy/tinyrenderer/wiki
 
 # Purpose
 
-To learn how to render stuff.
+To learn how rendering works.
 
 # Win32?
 
@@ -14,7 +14,6 @@ ssloy/tinyrenderer utilizes the TGAImage format distributing a header/src file p
 
 So I'm using the win32 API's to handle all of the window creation and pixel blitting.
 
-# Re-inventing the Wheel
+# Other
 
-I don't like using tools I don't really understand. So where I feel it's reasonable, I'm building my own data structures and such.
-
+I don't really like templates. In my limited experience, they just make debugging more annoying. STL types are even worse.

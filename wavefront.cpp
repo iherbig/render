@@ -1,8 +1,10 @@
+#include <windows.h>
 #include <stdio.h>
 
 #include "types.h"
 #include "utils.h"
 #include "wavefront.h"
+#include "stretchy_buffer.h"
 
 WavefrontObj load_obj(const char *file_name) {
 	WavefrontObj result = {};
@@ -26,7 +28,7 @@ WavefrontObj load_obj(const char *file_name) {
 			// Just an empty line.
 		}
 		else if (strcmp(token, "v") == 0) {
-			Vector4<f32> vert = {};
+			Vec4f vert = {};
 			vert.w = 1;
 
 			token = strtok_s(NULL, " \t", &line_tracker);
@@ -41,10 +43,10 @@ WavefrontObj load_obj(const char *file_name) {
 				vert.w = (f32)atof(token);
 			}
 
-			result.verts.add(vert);
+			sb_push(result.verts, vert);
 		}
 		else if (strcmp(token, "vn") == 0) {
-			Vector3<f32> normal = {};
+			Vec3f normal = {};
 
 			token = strtok_s(NULL, " \t", &line_tracker);
 			normal.x = (f32)atof(token);
@@ -53,10 +55,10 @@ WavefrontObj load_obj(const char *file_name) {
 			token = strtok_s(NULL, " \t", &line_tracker);
 			normal.z = (f32)atof(token);
 
-			result.vert_normals.add(normal);
+			sb_push(result.vert_normals, normal);
 		}
 		else if (strcmp(token, "vt") == 0) {
-			Vector3<f32> text = {};
+			Vec3f text = {};
 
 			token = strtok_s(NULL, " \t", &line_tracker);
 			text.x = (f32)atof(token);
@@ -68,7 +70,7 @@ WavefrontObj load_obj(const char *file_name) {
 				text.z = (f32)atof(token);
 			}
 
-			result.text_coords.add(text);
+			sb_push(result.text_coords, text);
 		}
 		else if (strcmp(token, "f") == 0) {
 			Face face = {};
@@ -154,7 +156,7 @@ WavefrontObj load_obj(const char *file_name) {
 				face.vertex_indices.z = atoi(token) - 1;
 			}
 
-			result.faces.add(face);
+			sb_push(result.faces, face);
 		}
 		else if (strcmp(token, "#") == 0) {
 			// This is just a comment, discard.

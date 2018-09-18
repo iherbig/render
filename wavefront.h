@@ -2,19 +2,18 @@
 
 #include "types.h"
 #include "vectors.h"
-#include "array.h"
 
 struct Face {
-	Vector3<int> vertex_indices;
-	Vector3<int> texture_indices;
-	Vector3<int> normal_indices;
+	Vec3i vertex_indices;
+	Vec3i texture_indices;
+	Vec3i normal_indices;
 };
 
 struct WavefrontObj {
-	Array<Vector4<f32>> verts;
-	Array<Vector3<f32>> text_coords;
-	Array<Vector3<f32>> vert_normals;
-	Array<Face>    faces;
+	Vec4f *verts;
+	Vec3f *text_coords;
+	Vec3f *vert_normals;
+	Face         *faces;
 };
 
 WavefrontObj load_obj(const char *file_name);

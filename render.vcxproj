@@ -21,13 +21,14 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="tgaimage.cpp" />
+    <ClCompile Include="triangle.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="wavefront.cpp" />
     <ClCompile Include="world.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="array.h" />
     <ClInclude Include="color.h" />
+    <ClInclude Include="stretchy_buffer.h" />
     <ClInclude Include="texture.h" />
     <ClInclude Include="tgaimage.h" />
     <ClInclude Include="triangle.h" />
