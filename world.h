@@ -29,7 +29,7 @@ struct World {
 	void clear(const Color &color);
 	void draw_triangle(Vec2i t0, Vec2i t1, Vec2i t2, const Color &color);
 	void draw_triangle(const Triangle &triangle, f32 *z_buffer, const Color &color);
-	void draw_triangle(const Triangle &triangle, const TextureMap &texture_map, f32 *z_buffer, f32 light_intensity);
+	void draw_triangle(const Triangle &triangle, const TextureMap &texture_map, const Vec2f *uvs, f32 *z_buffer, f32 light_intensity);
 };
 
 inline Vec2i to_screen_coords(int client_width, int client_height, Vec2f point) {

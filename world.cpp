@@ -190,7 +190,7 @@ struct Foo {
 };
 */
 
-void World::draw_triangle(const Triangle &triangle, const TextureMap &texture_map, f32 *z_buffer, f32 light_intensity) {
+void World::draw_triangle(const Triangle &triangle, const TextureMap &texture_map, const Vec2f *uvs, f32 *z_buffer, f32 light_intensity) {
 	auto min_x = clamp(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto max_x = clamp(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), -1.0f, 1.0f);
 	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), -1.0f, 1.0f);
@@ -235,8 +235,8 @@ void World::draw_triangle(const Triangle &triangle, const TextureMap &texture_ma
 			// We have the barycentric coefficients, so we can use them to find out where to index into the texture map.
 			// I spent way too long trying to figure out how to do this. But I'd forgotten that barycentric coefficients literally
 			// are the value that you want. "What percentage of each vertex is a given point?"
-			auto texture_map_bary_coord_x = barycentric_coefficients.x * texture_map.uvs[0].x + barycentric_coefficients.y * texture_map.uvs[1].x + barycentric_coefficients.z * texture_map.uvs[2].x;
-			auto texture_map_bary_coord_y = barycentric_coefficients.x * texture_map.uvs[0].y + barycentric_coefficients.y * texture_map.uvs[1].y + barycentric_coefficients.z * texture_map.uvs[2].y;
+			auto texture_map_bary_coord_x = barycentric_coefficients.x * uvs[0].x + barycentric_coefficients.y * uvs[1].x + barycentric_coefficients.z * uvs[2].x;
+			auto texture_map_bary_coord_y = barycentric_coefficients.x * uvs[0].y + barycentric_coefficients.y * uvs[1].y + barycentric_coefficients.z * uvs[2].y;
 			auto texture_map_coord_x = (int)(texture_map_bary_coord_x * texture_map.width);
 			auto texture_map_coord_y = (int)(texture_map_bary_coord_y * texture_map.height);
 

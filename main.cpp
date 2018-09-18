@@ -123,7 +123,7 @@ int main() {
 	assert(image_load_result.loaded);
 
 	auto image = image_load_result.image;
-	auto texture_color_data = decompress_tga_image(&image);
+	auto texture_map = decompress_tga_image(&image);
 
 	timeBeginPeriod(1);
 
@@ -144,12 +144,10 @@ int main() {
 
 		world.clear(BLACK);
 
-		for (auto index = 0; index < z_buffer_length; ++index) {
-			z_buffer[index] = -1;
-		}
+		memset(z_buffer, -1, z_buffer_length);
 
 		for (auto index = 0; index < sb_count(obj.faces); ++index) {
-			Face *face = &obj.faces[index];
+			auto face = &obj.faces[index];
 			Vec3f vertices[] =
 			{
 				obj.verts[face->vertex_indices.x].v3,
@@ -157,19 +155,19 @@ int main() {
 				obj.verts[face->vertex_indices.z].v3
 			};
 
-			TextureMap texture_map;
-			texture_map.dimensions = Vec2i{ image.header->image_spec.image_width, image.header->image_spec.image_height };
-			texture_map.uvs[0] = obj.text_coords[face->texture_indices.x].v2;
-			texture_map.uvs[1] = obj.text_coords[face->texture_indices.y].v2;
-			texture_map.uvs[2] = obj.text_coords[face->texture_indices.z].v2;
-			texture_map.pixel_data = texture_color_data;
+			Vec2f uvs[3] =
+			{
+				obj.text_coords[face->texture_indices.x].v2,
+				obj.text_coords[face->texture_indices.y].v2,
+				obj.text_coords[face->texture_indices.z].v2
+			};
 
 			Triangle triangle = { vertices[0], vertices[1], vertices[2] };
 
 			auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
 			auto light_intensity = normal.normalize().dot(light_dir);
 
-			if (light_intensity > 0) world.draw_triangle(triangle, texture_map, z_buffer, light_intensity);
+			if (light_intensity > 0) world.draw_triangle(triangle, texture_map, uvs, z_buffer, light_intensity);
 		}
 
 		auto context = GetDC(window);

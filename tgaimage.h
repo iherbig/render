@@ -47,6 +47,8 @@ struct TgaImagePixelCursor {
 	bool raw_packet;
 };
 
+struct TextureMap;
+
 TgaImageLoadResult load_tga_image(const char *file_name);
 Color get_next_pixel(TgaImagePixelCursor *pixel_data);
-Color *decompress_tga_image(const TgaImage *texture);
+TextureMap decompress_tga_image(const TgaImage *texture);
