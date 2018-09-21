@@ -6,12 +6,13 @@
 #include "stretchy_buffer.h"
 #include "types.h"
 #include "color.h"
-#include "world.h"
+#include "render.h"
 #include "vectors.h"
 #include "wavefront.h"
 #include "utils.h"
 #include "tgaimage.h"
 #include "texture.h"
+#include "matrix_math.h"
 
 static bool GlobalRunning = true;
 
@@ -34,7 +35,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, L
 	return 0;
 }
 
-static void handle_message(HWND window, World *world, MSG message) {
+static void handle_message(HWND window, Backbuffer &buffer, MSG message) {
 	switch (message.message) {
 	case WM_QUIT:
 		GlobalRunning = false;
@@ -44,7 +45,7 @@ static void handle_message(HWND window, World *world, MSG message) {
 	{
 		PAINTSTRUCT paint;
 		auto context = BeginPaint(window, &paint);
-		world->render(context);
+		render(buffer, context);
 		EndPaint(window, &paint);
 	} break;
 
@@ -53,6 +54,38 @@ static void handle_message(HWND window, World *world, MSG message) {
 		DispatchMessage(&message);
 		break;
 	}
+}
+
+// At the moment, I don't really understand this math.
+// Maybe this is good enough reading? http://www.thecodecrate.com/opengl-es/opengl-viewport-matrix/
+Mat4f make_viewport(int x, int y, int width, int height) {
+	const int depth = 255;
+	Mat4f result = Mat4_Identity;
+
+	set_matrix_entry(result, 0, 3, x + width * 0.5f);
+	set_matrix_entry(result, 1, 3, y + height * 0.5f);
+	set_matrix_entry(result, 2, 3, depth * 0.5f);
+
+	set_matrix_entry(result, 0, 0, width * 0.5f);
+	set_matrix_entry(result, 1, 1, height * 0.5f);
+	set_matrix_entry(result, 2, 2, depth * 0.5f);
+
+	return result;
+}
+
+inline Vec2i get_window_dimensions(int client_width, int client_height) {
+	Vec2i result = { client_width, client_height };
+
+	RECT window_rect = {};
+	window_rect.bottom = client_height;
+	window_rect.right = client_width;
+
+	if (AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)) {
+		result.x = window_rect.right - window_rect.left;
+		result.y = window_rect.bottom - window_rect.top;
+	}
+
+	return result;
 }
 
 //int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_code) {
@@ -71,49 +104,42 @@ int main() {
 		return -1;
 	}
 
-	auto client_width = 1024;
-	auto client_height = 1024;
-	auto window_width = client_width;
-	auto window_height = client_height;
+	auto client_width = 800;
+	auto client_height = 800;
+	auto window_dimensions = get_window_dimensions(client_width, client_height);
 
-	RECT window_rect = {};
-	window_rect.bottom = client_height;
-	window_rect.right = client_width;
-
-	if (AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)) {
-		window_width = window_rect.right - window_rect.left;
-		window_height = window_rect.bottom - window_rect.top;
-	}
-
-	auto window = CreateWindowEx(0, window_class.lpszClassName, "Renderer", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, window_width, window_height, 0, 0, instance, 0);
+	auto window = CreateWindowEx(0, window_class.lpszClassName, "Renderer", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, window_dimensions.x, window_dimensions.y, 0, 0, instance, 0);
 
 	if (!window) {
 		OutputDebugString("Bad window creation.\n");
 		return -2;
 	}
 
-	World world = {};
+	Backbuffer buffer = {};
+	buffer.width = client_width;
+	buffer.height = client_height;
+	buffer.bytes_per_pixel = 4;
+	buffer.stride = client_width * buffer.bytes_per_pixel;
+	buffer.memory = (u8 *)malloc(client_width * client_height * buffer.bytes_per_pixel);
 
-	world.buffer.width = client_width;
-	world.buffer.height = client_height;
-	world.buffer.bytes_per_pixel = 4;
-	world.buffer.stride = client_width * world.buffer.bytes_per_pixel;
-	world.buffer.memory = (u8 *)malloc(client_width * client_height * world.buffer.bytes_per_pixel);
-
-	world.buffer.info.bmiHeader.biSize = sizeof(world.buffer.info.bmiHeader);
-	world.buffer.info.bmiHeader.biWidth = client_width;
-	world.buffer.info.bmiHeader.biHeight = client_height;
-	world.buffer.info.bmiHeader.biPlanes = 1;
-	world.buffer.info.bmiHeader.biBitCount = 32;
-	world.buffer.info.bmiHeader.biCompression = BI_RGB;
+	buffer.info.bmiHeader.biSize = sizeof(buffer.info.bmiHeader);
+	buffer.info.bmiHeader.biWidth = client_width;
+	buffer.info.bmiHeader.biHeight = client_height;
+	buffer.info.bmiHeader.biPlanes = 1;
+	buffer.info.bmiHeader.biBitCount = 32;
+	buffer.info.bmiHeader.biCompression = BI_RGB;
 
 	auto obj = load_obj("data/african_head.wfo");
 
-	auto light_dir = Vec3f{ 0, 0, -1 };
+	auto camera = Vec3f{ 0, 0, 3 };
+	auto view = make_viewport((int)(client_width * 0.125f), (int)(client_width * 0.125f), (int)(client_width * 0.75f), (int)(client_height * 0.75f));
+	auto proj = Mat4_Identity;
+	set_matrix_entry(proj, 3, 2, -1.0f / camera.z);
 
+	auto light_dir = Vec3f{ 0, 0, -1 };
 	auto z_buffer_length = client_height * client_width;
 
-	// Why bother free it, it'll live throughout the lifetime of the program.
+	// I have a feeling there's something wrong with how I'm handling the z-buffer that might become apparent when I move the camera behind the model.
 	auto z_buffer = (f32 *)malloc(z_buffer_length * sizeof(f32));
 
 	auto image_load_result = load_tga_image("data/african_head_diffuse.tga");
@@ -131,7 +157,7 @@ int main() {
 	while (GlobalRunning) {
 		MSG message;
 		while (PeekMessage(&message, 0, 0, 0, PM_REMOVE)) {
-			handle_message(window, &world, message);
+			handle_message(window, buffer, message);
 		}
 
 		// At the moment, it's taking about a half second to render each frame.
@@ -139,20 +165,30 @@ int main() {
 		// as possible at some point, but I don't want to get stuck figuring out how
 		// to use whatever threading API that Windows has.
 		auto current_time = timeGetTime();
-		printf("FPS %ld\n", 1000 / (current_time - last_time));
+		auto delta_t = (current_time - last_time);
+		if (delta_t != 0) {
+			printf("FPS %ld\n", 1000 / delta_t);
+		}
 		last_time = current_time;
 
-		world.clear(BLACK);
+		clear(buffer, BLACK);
 
 		memset(z_buffer, -1, z_buffer_length);
 
 		for (auto index = 0; index < sb_count(obj.faces); ++index) {
 			auto face = &obj.faces[index];
-			Vec3f vertices[] =
-			{
+
+			Vec3f vertices[] = {
 				obj.verts[face->vertex_indices.x].v3,
 				obj.verts[face->vertex_indices.y].v3,
 				obj.verts[face->vertex_indices.z].v3
+			};
+
+			Vec3f transformed_verts[] = 
+			{
+				project_to_vec3f(view * proj * vertices[0]),
+				project_to_vec3f(view * proj * vertices[1]),
+				project_to_vec3f(view * proj * vertices[2]),
 			};
 
 			Vec2f uvs[3] =
@@ -162,16 +198,17 @@ int main() {
 				obj.text_coords[face->texture_indices.z].v2
 			};
 
-			Triangle triangle = { vertices[0], vertices[1], vertices[2] };
+			Triangle triangle = { transformed_verts[0], transformed_verts[1], transformed_verts[2] };
 
 			auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
-			auto light_intensity = normal.normalize().dot(light_dir);
+			auto transformed_normal = (transformed_verts[2] - transformed_verts[0]).cross(transformed_verts[1] - transformed_verts[0]);
+			auto light_intensity = normalize(normal).dot(light_dir);
 
-			if (light_intensity > 0) world.draw_triangle(triangle, texture_map, uvs, z_buffer, light_intensity);
+			if (light_intensity > 0) draw_triangle(buffer, triangle, texture_map, uvs, z_buffer, light_intensity);
 		}
 
 		auto context = GetDC(window);
-		world.render(context);
+		render(buffer, context);
 		ReleaseDC(window, context);
 	}
 

@@ -4,9 +4,9 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="wavefront.cpp" />
-    <ClCompile Include="world.cpp" />
     <ClCompile Include="tgaimage.cpp" />
     <ClCompile Include="triangle.cpp" />
+    <ClCompile Include="render.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h" />
@@ -15,9 +15,10 @@
     <ClInclude Include="vectors.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="triangle.h" />
-    <ClInclude Include="world.h" />
     <ClInclude Include="tgaimage.h" />
     <ClInclude Include="texture.h" />
     <ClInclude Include="stretchy_buffer.h" />
+    <ClInclude Include="matrix_math.h" />
+    <ClInclude Include="render.h" />
   </ItemGroup>
 </Project>

@@ -96,18 +96,18 @@ struct Vec3f {
 
 		return result;
 	}
-
-	inline f64 length() const {
-		auto result = sqrt(x * x + y * y + z * z);
-		return result;
-	}
-
-	inline Vec3f normalize() const {
-		auto length_reciprocal = (1.0f / length());
-		Vec3f result = { (f32)(x * length_reciprocal), (f32)(y * length_reciprocal), (f32)(z * length_reciprocal) };
-		return result;
-	}
 };
+
+inline f64 length(const Vec3f &vec) {
+	auto result = sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+	return result;
+}
+
+inline Vec3f normalize(const Vec3f &vec) {
+	auto length_reciprocal = (1.0f / length(vec));
+	Vec3f result = { (f32)(vec.x * length_reciprocal), (f32)(vec.y * length_reciprocal), (f32)(vec.z * length_reciprocal) };
+	return result;
+}
 
 struct Vec3i {
 	union {
@@ -201,6 +201,11 @@ struct Vec4f {
 
 	inline Vec4f operator*(const f32 rhs) const {
 		Vec4f result = { x * rhs, y * rhs, z * rhs, w * rhs };
+		return result;
+	}
+
+	inline Vec4f operator-(const Vec4f &rhs) const {
+		Vec4f result = { x - rhs.x, y - rhs.y, z - rhs.z, w - rhs.w };
 		return result;
 	}
 };
