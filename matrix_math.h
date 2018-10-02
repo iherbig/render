@@ -88,7 +88,7 @@ struct Mat4f {
 		result.z = rhs.z;
 		result.w = 1;
 
-		return this->operator*(result);
+		return *this * result;
 	}
 };
 

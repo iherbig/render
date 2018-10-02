@@ -56,19 +56,21 @@ static void handle_message(HWND window, Backbuffer &buffer, MSG message) {
 	}
 }
 
-// At the moment, I don't really understand this math.
-// Maybe this is good enough reading? http://www.thecodecrate.com/opengl-es/opengl-viewport-matrix/
 Mat4f make_viewport(int x, int y, int width, int height) {
-	const int depth = 255;
+	const int near_clip = 1;
+	const int far_clip = 255;
+	const int depth = far_clip - near_clip;
+
 	Mat4f result = Mat4_Identity;
 
-	set_matrix_entry(result, 0, 3, x + width * 0.5f);
-	set_matrix_entry(result, 1, 3, y + height * 0.5f);
-	set_matrix_entry(result, 2, 3, depth * 0.5f);
-
 	set_matrix_entry(result, 0, 0, width * 0.5f);
+	set_matrix_entry(result, 0, 3, x + width * 0.5f);
+
 	set_matrix_entry(result, 1, 1, height * 0.5f);
+	set_matrix_entry(result, 1, 3, y + height * 0.5f);
+
 	set_matrix_entry(result, 2, 2, depth * 0.5f);
+	set_matrix_entry(result, 2, 3, depth * 0.5f);
 
 	return result;
 }
@@ -88,6 +90,24 @@ inline Vec2i get_window_dimensions(int client_width, int client_height) {
 	return result;
 }
 
+inline Mat4f look_at(Vec3f eye, Vec3f center, Vec3f up) {
+	auto z = normalize(eye - center);
+	auto x = normalize(up.cross(z));
+	auto y = normalize(z.cross(x));
+
+	auto view = Mat4_Identity;
+	auto model = Mat4_Identity;
+
+	for (auto index = 0; index < 3; ++index) {
+		set_matrix_entry(view, 0, index, x.dim[index]);
+		set_matrix_entry(view, 1, index, y.dim[index]);
+		set_matrix_entry(view, 2, index, z.dim[index]);
+		set_matrix_entry(model, index, 3, -center.dim[index]);
+	}
+
+	return view * model;
+}
+
 //int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_code) {
 int main() {
 	auto instance = GetModuleHandle(NULL);
@@ -104,8 +124,8 @@ int main() {
 		return -1;
 	}
 
-	auto client_width = 800;
-	auto client_height = 800;
+	auto client_width = 1024;
+	auto client_height = 1024;
 	auto window_dimensions = get_window_dimensions(client_width, client_height);
 
 	auto window = CreateWindowEx(0, window_class.lpszClassName, "Renderer", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, window_dimensions.x, window_dimensions.y, 0, 0, instance, 0);
@@ -130,26 +150,28 @@ int main() {
 	buffer.info.bmiHeader.biCompression = BI_RGB;
 
 	auto obj = load_obj("data/african_head.wfo");
-
-	auto camera = Vec3f{ 0, 0, 3 };
-	auto view = make_viewport((int)(client_width * 0.125f), (int)(client_width * 0.125f), (int)(client_width * 0.75f), (int)(client_height * 0.75f));
-	auto proj = Mat4_Identity;
-	set_matrix_entry(proj, 3, 2, -1.0f / camera.z);
-
-	auto light_dir = Vec3f{ 0, 0, -1 };
-	auto z_buffer_length = client_height * client_width;
-
-	// I have a feeling there's something wrong with how I'm handling the z-buffer that might become apparent when I move the camera behind the model.
-	auto z_buffer = (f32 *)malloc(z_buffer_length * sizeof(f32));
-
 	auto image_load_result = load_tga_image("data/african_head_diffuse.tga");
-
 	if (!image_load_result.loaded) return -1;
-
 	assert(image_load_result.loaded);
 
 	auto image = image_load_result.image;
 	auto texture_map = decompress_tga_image(&image);
+
+	auto camera = Vec3f{ 1, 1, 3 };
+	
+	// Something is still not right here. I'm pretty sure the math for the viewport is correct, and it makes sense to me,
+	// but moving the camera farther into positive z stops having an effect very quickly, and moving it into the negative z warps it.
+	// I have a feeling there's something wrong with how I'm handling the z-buffer that might become apparent when I move the camera behind the model.
+	// But it's possible that it's something here.
+	//auto viewport = make_viewport((int)(client_width * 0.125f), (int)(client_width * 0.125f), (int)(client_width * 0.75f), (int)(client_height * 0.75f));
+	auto viewport = make_viewport(0, 0, client_width, client_height);
+	auto proj = Mat4_Identity;
+	set_matrix_entry(proj, 3, 2, -1.0f / camera.z);
+	auto model_view = look_at(camera, Vec3f{ 0, 0, 0 }, Vec3f{ 0, 1, 0 });
+
+	auto light_dir = normalize(Vec3f{ 1, -1, 1 });
+	auto z_buffer_length = client_height * client_width;
+	auto z_buffer = (f32 *)malloc(z_buffer_length * sizeof(f32));
 
 	timeBeginPeriod(1);
 
@@ -160,7 +182,7 @@ int main() {
 			handle_message(window, buffer, message);
 		}
 
-		// At the moment, it's taking about a half second to render each frame.
+		// At the moment, it's taking about a second to render each frame.
 		// That's crazy long. I might try to parallelize the draw_triangle call as much
 		// as possible at some point, but I don't want to get stuck figuring out how
 		// to use whatever threading API that Windows has.
@@ -169,11 +191,14 @@ int main() {
 		if (delta_t != 0) {
 			printf("FPS %ld\n", 1000 / delta_t);
 		}
+
 		last_time = current_time;
 
 		clear(buffer, BLACK);
 
-		memset(z_buffer, -1, z_buffer_length);
+		for (auto index = 0; index < z_buffer_length; ++index) {
+			z_buffer[index] = FLT_MIN;
+		}
 
 		for (auto index = 0; index < sb_count(obj.faces); ++index) {
 			auto face = &obj.faces[index];
@@ -186,11 +211,21 @@ int main() {
 
 			Vec3f transformed_verts[] = 
 			{
-				project_to_vec3f(view * proj * vertices[0]),
-				project_to_vec3f(view * proj * vertices[1]),
-				project_to_vec3f(view * proj * vertices[2]),
+				project_to_vec3f(viewport * proj * model_view * vertices[0]),
+				project_to_vec3f(viewport * proj * model_view * vertices[1]),
+				project_to_vec3f(viewport * proj * model_view * vertices[2]),
 			};
 
+			Vec3f normals[] = {
+				obj.vert_normals[face->normal_indices.x],
+				obj.vert_normals[face->normal_indices.y],
+				obj.vert_normals[face->normal_indices.z],
+			};
+/*
+			auto clip_coordinates = proj * vertices[0];
+			auto screen_coordinates = viewport * project_to_vec3f(clip_coordinates);
+			auto normalized_screen_coordinates = project_to_vec3f(screen_coordinates);
+*/
 			Vec2f uvs[3] =
 			{
 				obj.text_coords[face->texture_indices.x].v2,
@@ -199,12 +234,7 @@ int main() {
 			};
 
 			Triangle triangle = { transformed_verts[0], transformed_verts[1], transformed_verts[2] };
-
-			auto normal = (vertices[2] - vertices[0]).cross(vertices[1] - vertices[0]);
-			auto transformed_normal = (transformed_verts[2] - transformed_verts[0]).cross(transformed_verts[1] - transformed_verts[0]);
-			auto light_intensity = normalize(normal).dot(light_dir);
-
-			if (light_intensity > 0) draw_triangle(buffer, triangle, texture_map, uvs, z_buffer, light_intensity);
+			draw_triangle(buffer, triangle, texture_map, uvs, z_buffer, normals, light_dir);
 		}
 
 		auto context = GetDC(window);

@@ -13,7 +13,7 @@ struct WavefrontObj {
 	Vec4f *verts;
 	Vec3f *text_coords;
 	Vec3f *vert_normals;
-	Face         *faces;
+	Face  *faces;
 };
 
 WavefrontObj load_obj(const char *file_name);

@@ -96,7 +96,7 @@ static inline void apply_lighting(Color &color, f32 light_intensity) {
 	color.b = (u8)(color.b * light_intensity);
 }
 
-void draw_triangle(Backbuffer &buffer, const Triangle &triangle, const TextureMap &texture_map, const Vec2f uvs[3], f32 *z_buffer, f32 light_intensity) {
+void draw_triangle(Backbuffer &buffer, const Triangle &triangle, const TextureMap &texture_map, const Vec2f uvs[3], f32 *z_buffer, const Vec3f normals[3], const Vec3f light_dir) {
 	auto min_x = clamp(min(triangle.p1.x, min(triangle.p2.x, triangle.p3.x)), 0.0f, (f32)buffer.width);
 	auto max_x = clamp(max(triangle.p1.x, max(triangle.p2.x, triangle.p3.x)), 0.0f, (f32)buffer.height);
 	auto min_y = clamp(min(triangle.p1.y, min(triangle.p2.y, triangle.p3.y)), 0.0f, (f32)buffer.width);
@@ -104,6 +104,12 @@ void draw_triangle(Backbuffer &buffer, const Triangle &triangle, const TextureMa
 
 	auto min_point = Vec2f{ min_x, min_y };
 	auto max_point = Vec2f{ max_x, max_y };
+
+	auto intensity = Vec3f{
+		normalize(normals[0]).dot(light_dir),
+		normalize(normals[1]).dot(light_dir),
+		normalize(normals[2]).dot(light_dir)
+	};
 
 	// This loop could be pretty easily parallelized.
 	// foreach coordinate (x, y):
@@ -117,15 +123,16 @@ void draw_triangle(Backbuffer &buffer, const Triangle &triangle, const TextureMa
 			auto barycentric_coefficients = triangle.barycentric_coefficients_of(x, y);
 			if (barycentric_coefficients.x < 0 || barycentric_coefficients.y < 0 || barycentric_coefficients.z < 0) continue;
 
-			// Not exactly sure why the depth has to be non-negative. 
-			// Actually, I'm not even sure why some z-values are negative.
-			// I have no idea what coordinate-space the obj is in.
 			auto depth =
 				triangle.p1.z * barycentric_coefficients.x +
 				triangle.p2.z * barycentric_coefficients.y +
 				triangle.p3.z * barycentric_coefficients.z;
 
-			if (z_buffer[y * buffer.width + x] > depth) continue;
+			if (z_buffer[y * buffer.width + x] >= depth) continue;
+
+			auto light_intensity = barycentric_coefficients.dot(intensity);
+
+			if (light_intensity <= 0) continue;
 
 			// We have the barycentric coefficients, so we can use them to find out where to index into the texture map.
 			// I spent way too long trying to figure out how to do this. But I'd forgotten that barycentric coefficients literally
@@ -135,9 +142,8 @@ void draw_triangle(Backbuffer &buffer, const Triangle &triangle, const TextureMa
 			auto texture_map_coord_x = (int)(texture_map_bary_coord_x * texture_map.width);
 			auto texture_map_coord_y = (int)(texture_map_bary_coord_y * texture_map.height);
 
-			auto texture_color_index = texture_map_coord_y * texture_map.width + texture_map_coord_x;
+			auto color = texture_map.pixel_data[texture_map_coord_y * texture_map.width + texture_map_coord_x];
 
-			auto color = texture_map.pixel_data[texture_color_index];
 			//auto color = WHITE;
 			apply_lighting(color, light_intensity);
 
